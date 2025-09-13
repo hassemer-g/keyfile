@@ -39,7 +39,7 @@ export function buildKeyfile(
     `);
 
     
-    const salt = doHashing(`—${ownBirthDate.slice(0, 5)}—${fatherBirthDate.slice(0, 5)}—${motherBirthDate.slice(0, 5)}—${userPIN.slice(0, 2)}—${userPassw.slice(0, 10)}—`);
+    const salt = doHashing(`—${ownBirthDate}—${fatherBirthDate}—${motherBirthDate}—${userPIN}—${userPassw}—`);
 
     
     const prePassw = doHashing(`—${userPIN}—${userPassw}—${ownBirthDate}—${fatherBirthDate}—${motherBirthDate}—${encodingFunction(salt)}—`);
