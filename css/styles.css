@@ -1,0 +1,230 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0 auto;
+    padding: 5%;
+    box-sizing: border-box;
+    line-height: 1.6;
+    max-width: 500px; 
+    text-align: center;
+    background-color: #121212; 
+    color: #e0e0e0; 
+}
+
+h1 {
+    font-size: 1.8rem;
+    text-align: center;
+    margin-bottom: 5%;
+    color: #ffffff; 
+}
+
+h1 a {
+    color: green;
+    text-decoration: none;
+}
+
+h1 a:hover {
+    color: lightgreen;
+}
+
+.hidden {
+    display: none;
+}
+
+.form-group {
+    margin-bottom: 5%;
+}
+
+.subtitle {
+    text-align: center;
+    font-size: 1rem;
+    color: #b0b0b0; 
+    margin-bottom: 20px;
+    white-space: normal;  
+    display: block;
+}
+.subtitle a {
+    color: green;
+    text-decoration: none;
+}
+
+.subtitle a:hover {
+    color: lightgreen;
+}
+
+.subtitle .code {
+    font-family: monospace;
+    color: lightblue;
+}
+
+label {
+    font-size: 1rem;
+    font-weight: bold;
+    margin-bottom: 2%;
+    display: block;
+}
+
+input {
+    width: 100%;
+    font-size: 1rem;
+    padding: 3%;
+    margin-top: 2%;
+    border: 1px solid #333; 
+    border-radius: 5px;
+    box-sizing: border-box;
+    background-color: #1e1e1e; 
+    color: #ffffff; 
+}
+
+input:focus {
+    outline: none;
+    border-color: lightgrey;
+    box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
+}
+
+button {
+    padding: 3%;
+    font-size: 1rem;
+    font-weight: bold;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 5%;
+    width: 90%;
+    max-width: 90%;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    background-color: green;
+    color: #ffffff; 
+}
+
+button:disabled {
+    background-color: #555; 
+    color: #ccc;
+    cursor: not-allowed;
+}
+
+button:enabled {
+    background-color: green;
+    color: white;
+}
+
+.word-wrap {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    max-width: 100%;
+    display: block;
+    padding: 2%;  
+    border-radius: 2%;  
+    background-color: #1e1e1e; 
+    color: #e0e0e0; 
+}
+
+.checkbox-container {
+    display: flex;
+    flex-direction: row; 
+    align-items: center; 
+    justify-content: flex-start; 
+    width: 100%; 
+    margin-top: 2%;
+}
+
+.checkbox-container input[type="checkbox"] {
+    width: auto;
+    height: auto;
+    margin: 0; 
+    margin-right: 2%; 
+    flex-shrink: 0; 
+}
+
+.checkbox-container label {
+    font-size: 0.85rem;
+    line-height: 1.2;
+    text-align: left;
+    flex-grow: 1; 
+    display: inline-block;
+    white-space: normal; 
+    width: 100%;
+    margin: 0; 
+    color: #e0e0e0; 
+}
+
+input[type="checkbox"]:checked {
+    accent-color: green;
+}
+
+.footer {
+    text-align: center;
+    margin-top: 5%;
+    font-size: 0.9rem;
+    color: #b0b0b0;
+}
+
+.footer a {
+    color: green;
+    text-decoration: none;
+}
+
+.footer a:hover {
+    color: lightgreen;
+}
+
+.disclaimer {
+    font-size: 0.8rem;
+}
+
+.disclaimer .highlight {
+    color: red;
+}
+
+#resultMessage {
+    margin-top: 5%;
+    font-size: 0.9rem;
+    font-family: monospace;
+}
+
+.textarea-metadata {
+    width: 100%; 
+    min-height: 100px; 
+    max-height: 500px; 
+    resize: vertical; 
+    padding: 10px; 
+    border: 1px solid #333; 
+    border-radius: 5px; 
+    font-size: 14px; 
+    box-sizing: border-box; 
+    transition: border-color 0.3s ease; 
+    background-color: #1e1e1e; 
+    color: #ffffff; 
+    font-family: monospace;
+}
+
+.textarea-metadata:focus {
+    border-color: lightgrey;
+    outline: none; 
+    box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
+}
+
+
+@media screen and (min-width: 768px) {
+    body {
+        padding: 2%;
+    }
+
+    h1 {
+        font-size: 1.8rem;
+    }
+
+    button {
+        max-width: 450px;
+        margin: 2% auto;
+        display: block;
+    }
+
+    #resultMessage {
+        max-width: 500px;
+        margin: 0 auto;
+    }
+}
