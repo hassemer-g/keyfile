@@ -16,13 +16,12 @@ const doButton = document.getElementById("doButton");
 
 
 function validatePIN(input) {
-    return /^\d{6,}$/.test(input);
+    return /^\d{4,}$/.test(input);
 }
 
 function validatePasswInput(input) {
-    return validatePassw(input, 16)
-        && !input.includes(userInputPIN.value.trim().slice(0, 4))
-        && !input.includes(userInputPIN.value.trim().slice(-4));
+    return validatePassw(input, 20)
+        && !input.includes(userInputPIN.value.trim());
 }
 
 function validateBirthDate(input) {
