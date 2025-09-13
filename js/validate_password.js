@@ -19,13 +19,14 @@ export function validatePassw(
     if (input.length < minLength) return false;
 
     const hasDigit = /\d/; 
-    const hasLetter = /[A-Za-z]/; 
+    const hasLowerLetter = /[a-z]/;
+    const hasUpperLetter = /[A-Z]/;
 
     
     
     const hasNonBasicChar = /[^0-9A-Za-z]/u;
 
-    return hasDigit.test(input) && hasLetter.test(input) && hasNonBasicChar.test(input);
+    return hasDigit.test(input) && hasLowerLetter.test(input) && hasUpperLetter.test(input) && hasNonBasicChar.test(input);
 }
 
 
