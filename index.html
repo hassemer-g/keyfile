@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hassemer's Keyfile Builder</title>
+    <link rel="stylesheet" href="./css/styles.css">
+    <script type="module" src="./js/main.js"></script>
+</head>
+
+<body>
+
+    <!-- Main Menu -->
+    <div id="mainMenu">
+    <h1>Hassemer's Keyfile Builder</h1>
+
+        <p class="subtitle">This tool allows you to build a 800,000-byte strong keyfile from a series of inputs, including a PIN, a password and the dates of birth of your family members, in a deterministic manner</p>
+
+        <div class="form-group">
+            <label for="userInputPIN">Your PIN (digits only, min. length 6):</label>
+            <input type="password" id="userInputPIN" placeholder="E.g., 123456">
+        </div>
+
+        <div class="form-group">
+            <label for="userInputPassw">Your password (min. 16 characters; must include a letter, a digit and a symbol):</label>
+            <input type="password" id="userInputPassw" placeholder="E.g., strong_password1">
+        </div>
+
+        <div class="form-group">
+            <label for="userInputFatherBirthDate">Your father's date of birth (format: DD/MM/YYYY):</label>
+            <input type="text" id="userInputFatherBirthDate" placeholder="E.g., 01/11/1970">
+        </div>
+
+        <div class="form-group">
+            <label for="userInputMotherBirthDate">Your mother's date of birth (format: DD/MM/YYYY):</label>
+            <input type="text" id="userInputMotherBirthDate" placeholder="E.g., 31/03/1979">
+        </div>
+
+        <div class="form-group">
+            <label for="userInputOwnBirthDate">Your own date of birth (format: DD/MM/YYYY):</label>
+            <input type="text" id="userInputOwnBirthDate" placeholder="E.g., 08/08/2000">
+        </div>
+
+        <button id="doButton" disabled>Build keyfile</button>
+
+        <p class="footer">Made with ❤️ by <a href="https://peakd.com/@hassemer" target="_blank">@hassemer</a></p>
+        <p class="footer">v. 1.0</p>
+        <br><br>
+        <p class="disclaimer"><b>Disclaimer:</b> This tool is provided "as-is", absolutely without guarantees. <span class="highlight">Use it at your own risk.</span> Please be careful 🙏🏻</p>
+    </div>
+
+</body>
+
+</html>
