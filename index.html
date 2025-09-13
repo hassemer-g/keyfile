@@ -14,16 +14,16 @@
     <div id="mainMenu">
     <h1>Hassemer's Keyfile Builder</h1>
 
-        <p class="subtitle">This tool allows you to build a 800,000-byte strong keyfile from a series of inputs, including a PIN, a password and the dates of birth of your family members, in a deterministic manner</p>
+        <p class="subtitle">This tool allows you to build a 800,000-byte keyfile from a series of inputs, including a PIN, a password and the dates of birth of your family members, in a deterministic manner</p>
 
         <div class="form-group">
-            <label for="userInputPIN">Your PIN (digits only, min. length 6):</label>
-            <input type="password" id="userInputPIN" placeholder="E.g., 123456">
+            <label for="userInputPIN">Your PIN (digits only, min. length 4):</label>
+            <input type="password" id="userInputPIN" placeholder="E.g., 1234">
         </div>
 
         <div class="form-group">
-            <label for="userInputPassw">Your password (min. 16 characters; must include a letter, a digit and a symbol):</label>
-            <input type="password" id="userInputPassw" placeholder="E.g., strong_password1">
+            <label for="userInputPassw">Your password (min. 20 characters; must include a lowercase letter, an uppercase letter, a digit and a symbol, and must not contain the PIN):</label>
+            <input type="password" id="userInputPassw" placeholder="E.g., VERYstrong_password1">
         </div>
 
         <div class="form-group">
