@@ -1,8 +1,8 @@
-# website
-index.html
-js/
+# website-related
 css/
-
+js/
+.nojekyll
+index.html
 
 
 
