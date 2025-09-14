@@ -29,8 +29,8 @@ export function derivSingle(
 
 
 export function doHashing(
-    input,
-    info = "",
+    input, 
+    info = "", 
     outputLength = 64,
     algoForHKDF = sha3_512,
     algoForInfo = blake2b,
@@ -40,7 +40,7 @@ export function doHashing(
     if (!input || typeof input === "boolean") {
         throw new Error(`Input to the "doHashing" function should not be falsy or boolean!`);
     }
-
+    
     if (
         input instanceof Uint8Array
     ) {
@@ -55,33 +55,33 @@ export function doHashing(
     ) {
         input = utf8ToBytes(String(input));
     } else if (
-        typeof input === "object"
+        typeof input === "object" 
     ) {
         input = utf8ToBytes(JSON.stringify(input, null, 0));
     } else {
         throw new Error(`Invalid input! Acceptable input types to the "doHashing" function: Uint8Array, string, number, big integer, object or array.`);
     }
 
-    const hash1 = sha256(input);
-    const hash2 = sha512(input);
-    const hash3 = sha3_512(input);
-    const hash4 = blake2b(input);
-    const hash5 = blake2s(input);
-    const hash6 = blake3(input);
+    const hash1 = sha256(input); 
+    const hash2 = sha512(input); 
+    const hash3 = sha3_512(input); 
+    const hash4 = blake2b(input); 
+    const hash5 = blake2s(input); 
+    const hash6 = blake3(input); 
 
-    const passw = utf8ToBytes(`—${encodingFunction(hash1)}—${encodingFunction(hash2)}—${encodingFunction(hash3)}—${encodingFunction(hash4)}—${encodingFunction(hash5)}—${encodingFunction(hash6)}—${outputLength}—${info}—`);
-    const salt = concatBytes(hash1, hash2, hash3, hash4, hash5, hash6);
+    const passw = utf8ToBytes(`—${encodingFunction(hash1)}—${encodingFunction(hash2)}—${encodingFunction(hash3)}—${encodingFunction(hash4)}—${encodingFunction(hash5)}—${encodingFunction(hash6)}—${info}—`); 
+    const salt = concatBytes(hash1, hash2, hash3, hash4, hash5, hash6); 
 
     const output = derivSingle(
-        passw,
-        salt,
-        `"doHashing" — ${outputLength} — ${info}`,
+        passw, 
+        salt, 
+        `"doHashing" — ${outputLength} — ${info}`, 
         outputLength,
         algoForHKDF,
         algoForInfo,
     );
 
-    return output;
+    return output; 
 }
 
 
@@ -99,8 +99,8 @@ export function derivMult(
     const elements = [];
     for (let i = 1; i <= numberOfElements; i++) {
 
-        passw = doHashing(`—${i}—${encodingFunction(passw)}—`);
-        salt = doHashing(`—${i}—${encodingFunction(salt)}—`);
+        passw = doHashing(`—${i}—${encodingFunction(passw)}—${numberOfElements}—${info}—`);
+        salt = doHashing(`—${i}—${encodingFunction(salt)}—${numberOfElements}—${info}—`);
 
         elements.push(derivSingle(
             passw,
@@ -125,14 +125,15 @@ export function expandKey(
     algoForInfo = blake2b,
     encodingFunction = encodeBase91,
 ) {
-
-    let expandedKey = doHashing(`—${expandedKeyLength}—${encodingFunction(passw)}—`);
+    
+    let expandedKey = doHashing(`—${encodingFunction(passw)}—${expandedKeyLength}—${info}—`);
 
     for (let i = 1; i < Math.ceil(expandedKeyLength / 64); i++) {
 
-        salt = doHashing(`—${i}—${encodingFunction(salt)}—`);
+        salt = doHashing(`—${i}—${encodingFunction(salt)}—${expandedKeyLength}—${info}—`);
 
-        const tempPassw = doHashing(`—${i}—${encodingFunction(concatBytes(expandedKey.slice(-32), expandedKey.slice(0, 32)))}—`);
+        const tempConcat = concatBytes(expandedKey.slice(-32), expandedKey.slice(0, 32));
+        const tempPassw = doHashing(`—${i}—${encodingFunction(tempConcat)}—${expandedKeyLength}—${info}—`);
 
         const newPiece = derivSingle(
             tempPassw,
