@@ -29,9 +29,11 @@ export function derivSingle(
 
 
 export function doHashing(
-    input, 
-    info = "", 
+    input,
+    info = "",
     outputLength = 64,
+    algoForHKDF = sha3_512,
+    algoForInfo = blake2b,
     encodingFunction = encodeBase91,
 ) {
 
@@ -75,6 +77,8 @@ export function doHashing(
         salt,
         `"doHashing" — ${outputLength} — ${info}`,
         outputLength,
+        algoForHKDF,
+        algoForInfo,
     );
 
     return output;
