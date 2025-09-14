@@ -3,10 +3,6 @@ import { doHashing, derivMult, expandKey } from "./deriv.js";
 import { multScrypt } from "./scrypt_sync.js";
 
 
-
-
-
-
 export function buildKeyfile(
     userPIN, 
     userPassw, 
@@ -16,10 +12,6 @@ export function buildKeyfile(
     keyfileLength, 
     encodingFunction = encodeBase91,
 ) {
-
-    
-    console.time("Keyfile derivation");
-
     
     const stringInputs = [userPIN, userPassw, fatherBirthDate, motherBirthDate, ownBirthDate];
     if (
@@ -33,18 +25,10 @@ export function buildKeyfile(
         throw new Error(`Incorrect arguments passed to the "buildKeyfile" function.`);
     }
 
-    console.log(`
-    Starting now to derive your keyfile.
-    Be patient, this can take up to 10 minutes, depending on your device.
-    `);
-
-    
     const salt = doHashing(`—${ownBirthDate}—${fatherBirthDate}—${motherBirthDate}—${userPIN}—${userPassw}—`);
 
-    
     const prePassw = doHashing(`—${userPIN}—${userPassw}—${ownBirthDate}—${fatherBirthDate}—${motherBirthDate}—${encodingFunction(salt)}—`);
 
-    
     const salts = derivMult(
         prePassw,
         salt,
@@ -52,14 +36,12 @@ export function buildKeyfile(
         `"buildKeyfile" — 2 salts — ${keyfileLength} — ${ownBirthDate} — ${fatherBirthDate} — ${motherBirthDate}`,
     );
 
-    
     const passw = multScrypt(
         prePassw, 
         salts[0], 
         200,
     );
 
-    
     const keyfile = expandKey(
         passw, 
         salts[1], 
@@ -67,17 +49,6 @@ export function buildKeyfile(
         `"buildKeyfile" — key expansion — ${keyfileLength} — ${ownBirthDate} — ${fatherBirthDate} — ${motherBirthDate}`,
     );
 
-    
-    const byteOutputs = [salt, prePassw, salts[0], salts[1], passw, keyfile];
-    if (
-        !byteOutputs.every(v => v instanceof Uint8Array)
-    ) {
-        throw new Error(`Function "buildKeyfile" failed.`);
-    }
-
-    console.timeEnd("Keyfile derivation");
-
     return keyfile; 
 }
-
 
