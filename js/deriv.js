@@ -32,6 +32,7 @@ export function doHashing(
     input, 
     info = "", 
     outputLength = 64,
+    encodingFunction = encodeBase91,
 ) {
 
     if (input instanceof Uint8Array) {
@@ -53,8 +54,8 @@ export function doHashing(
     const hash5 = blake2s(input);
     const hash6 = blake3(input);
 
-    const passw = concatBytes(hash1, hash2, hash3, hash4, hash5, hash6);
-    const salt = concatBytes(hash2, hash3, hash4, hash5, hash6, hash1);
+    const passw = utf8ToBytes(`—${encodingFunction(hash1)}—${encodingFunction(hash2)}—${encodingFunction(hash3)}—${encodingFunction(hash4)}—${encodingFunction(hash5)}—${encodingFunction(hash6)}—${outputLength}—${info}—`);
+    const salt = concatBytes(hash1, hash2, hash3, hash4, hash5, hash6);
 
     const output = derivSingle(
         passw,
