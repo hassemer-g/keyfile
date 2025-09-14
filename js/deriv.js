@@ -35,16 +35,29 @@ export function doHashing(
     encodingFunction = encodeBase91,
 ) {
 
-    if (input instanceof Uint8Array) {
+    if (!input || typeof input === "boolean") {
+        throw new Error(`Input to the "doHashing" function should not be falsy or boolean!`);
+    }
+
+    if (
+        input instanceof Uint8Array
+    ) {
         // do nothing
-    } else if (typeof input === "string" && input.trim()) {
+    } else if (
+        typeof input === "string" && input.trim()
+    ) {
         input = utf8ToBytes(input);
-    } else if (Number.isSafeInteger(input) || typeof input === "bigint") {
+    } else if (
+        (typeof input === "number" && input !== Infinity && input !== -Infinity)
+        || typeof input === "bigint"
+    ) {
         input = utf8ToBytes(String(input));
-    } else if (input && typeof input === "object") { 
+    } else if (
+        typeof input === "object"
+    ) {
         input = utf8ToBytes(JSON.stringify(input, null, 0));
     } else {
-        throw new Error(`Invalid input! Acceptable input types to the "doHashing" function: Uint8Array, non-empty string, integer, big integer, object or array.`);
+        throw new Error(`Invalid input! Acceptable input types to the "doHashing" function: Uint8Array, string, number, big integer, object or array.`);
     }
 
     const hash1 = sha256(input);
@@ -60,11 +73,11 @@ export function doHashing(
     const output = derivSingle(
         passw,
         salt,
-        `"doHashing" — ${outputLength} — ${info}`, 
+        `"doHashing" — ${outputLength} — ${info}`,
         outputLength,
     );
 
-    return output; 
+    return output;
 }
 
 
