@@ -16,21 +16,6 @@ export function derivSingle(
     algoForInfo = blake2b,
 ) {
 
-    if (
-        arguments.length < 2
-        || arguments.length > 6
-        || !(passw instanceof Uint8Array)
-        || !(salt instanceof Uint8Array)
-        || typeof info !== "string"
-        || !Number.isSafeInteger(outputLength)
-        || outputLength < 1
-        || outputLength > 64
-        || typeof algoForHKDF !== "function"
-        || typeof algoForInfo !== "function"
-    ) {
-        throw new Error(`Incorrect arguments passed to the "derivSingle" function.`);
-    }
-
     const output = hkdf(
         algoForHKDF,
         passw,
@@ -48,18 +33,7 @@ export function doHashing(
     info = "", 
     outputLength = 64,
 ) {
-    
-    if (
-        arguments.length < 1
-        || arguments.length > 3
-        || typeof info !== "string"
-        || !Number.isSafeInteger(outputLength)
-        || outputLength < 1
-        || outputLength > 64
-    ) {
-        throw new Error(`Incorrect arguments passed to the "doHashing" function.`);
-    }
-    
+
     if (input instanceof Uint8Array) {
         // do nothing
     } else if (typeof input === "string" && input.trim()) {
@@ -104,24 +78,6 @@ export function derivMult(
     encodingFunction = encodeBase91,
 ) {
 
-    if (
-        arguments.length < 3
-        || arguments.length > 8
-        || !(passw instanceof Uint8Array)
-        || !(salt instanceof Uint8Array)
-        || typeof info !== "string"
-        || !Number.isSafeInteger(numberOfElements)
-        || numberOfElements < 1
-        || !Number.isSafeInteger(outputLength)
-        || outputLength < 1
-        || outputLength > 64
-        || typeof algoForHKDF !== "function"
-        || typeof algoForInfo !== "function"
-        || typeof encodingFunction !== "function"
-    ) {
-        throw new Error(`Incorrect arguments passed to the "derivMult" function.`);
-    }
-
     const elements = [];
     for (let i = 1; i <= numberOfElements; i++) {
 
@@ -151,21 +107,6 @@ export function expandKey(
     algoForInfo = blake2b,
     encodingFunction = encodeBase91,
 ) {
-    
-    if (
-        arguments.length < 3
-        || arguments.length > 7
-        || !(passw instanceof Uint8Array)
-        || !(salt instanceof Uint8Array)
-        || typeof info !== "string"
-        || !Number.isSafeInteger(expandedKeyLength)
-        || expandedKeyLength < 1
-        || typeof algoForHKDF !== "function"
-        || typeof algoForInfo !== "function"
-        || typeof encodingFunction !== "function"
-    ) {
-        throw new Error(`Incorrect arguments passed to the "expandKey" function.`);
-    }
 
     let expandedKey = doHashing(`—${expandedKeyLength}—${encodingFunction(passw)}—`);
 
@@ -197,3 +138,4 @@ export function expandKey(
 
     return expandedKey; 
 }
+
