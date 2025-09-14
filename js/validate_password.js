@@ -1,10 +1,5 @@
 
 
-
-
-
-
-
 export function validatePassw(
     input, 
     minLength = 8, 
@@ -21,13 +16,9 @@ export function validatePassw(
     const hasDigit = /\d/; 
     const hasLowerLetter = /[a-z]/;
     const hasUpperLetter = /[A-Z]/;
-
-    
     
     const hasNonBasicChar = /[^0-9A-Za-z]/u;
 
     return hasDigit.test(input) && hasLowerLetter.test(input) && hasUpperLetter.test(input) && hasNonBasicChar.test(input);
 }
-
-
 
