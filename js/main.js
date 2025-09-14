@@ -3,16 +3,12 @@ import { buildKeyfile } from "./build_keyfile.js";
 import { encodeBase91 } from "./base91.js";
 
 
-
-
-
 const userInputPIN = document.getElementById("userInputPIN");
 const userInputPassw = document.getElementById("userInputPassw");
 const userInputFatherBirthDate = document.getElementById("userInputFatherBirthDate");
 const userInputMotherBirthDate = document.getElementById("userInputMotherBirthDate");
 const userInputOwnBirthDate = document.getElementById("userInputOwnBirthDate");
 const doButton = document.getElementById("doButton");
-
 
 
 function validatePIN(input) {
@@ -44,9 +40,7 @@ const validators = {
 };
 
 
-
 function validateButton() {
-
     
     if (
         validatePIN(userInputPIN.value.trim())
@@ -55,14 +49,15 @@ function validateButton() {
         && validateBirthDate(userInputMotherBirthDate.value.trim())
         && validateOwnBirthDate(userInputOwnBirthDate.value.trim())
     ) {
+        
         doButton.disabled = false;
-        doButton.style.backgroundColor = "green"; 
+        doButton.style.backgroundColor = "green";
+        
     } else {
         doButton.disabled = true;
         doButton.style.backgroundColor = ""; 
     }
 }
-
 
 
 Object.entries(validators).forEach(([id, fn]) => {
@@ -72,14 +67,13 @@ Object.entries(validators).forEach(([id, fn]) => {
         const isValid = fn(field.value.trim());
         field.style.borderColor = isValid ? "green" : "red";
     });
+    
     field.addEventListener("input", validateButton);
 });
 
 
-
 async function saveStringToFile(str, suggestedName = "download") {
   const blob = new Blob([str], { type: "application/octet-stream" });
-
   
   if (window.showSaveFilePicker) {
     
@@ -92,12 +86,12 @@ async function saveStringToFile(str, suggestedName = "download") {
         },
       ],
     });
-
     
     const writable = await handle.createWritable();
     
     await writable.write(blob);
     await writable.close();
+      
   } else {
     
     const url = URL.createObjectURL(blob);
@@ -114,12 +108,10 @@ async function saveStringToFile(str, suggestedName = "download") {
 }
 
 
-
 doButton.addEventListener("click", async () => {
 
     const keyfileLength = 800000;
 
-    
     const keyfile = encodeBase91(buildKeyfile(
         userInputPIN.value.trim(), 
         userInputPassw.value.trim(), 
@@ -131,7 +123,6 @@ doButton.addEventListener("click", async () => {
 
     try {
 
-        
         await saveStringToFile(keyfile, "keyfile");
         console.log("Keyfile successfully built and saved.");
 
@@ -141,18 +132,8 @@ doButton.addEventListener("click", async () => {
         
         alert("Failed to save keyfile: " + (err && err.message ? err.message : err));
     }
-
-    
-
 });
 
 
-
 validateButton();
-
-
-
-
-
-
 
