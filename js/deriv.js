@@ -50,7 +50,7 @@ export function doHashing(
     ) {
         input = utf8ToBytes(input);
     } else if (
-        (typeof input === "number" && input !== Infinity && input !== -Infinity)
+        (typeof input === "number" && input !== Infinity && input !== -Infinity && !(Number.isInteger(input) && !Number.isSafeInteger(input)))
         || typeof input === "bigint"
     ) {
         input = utf8ToBytes(String(input));
