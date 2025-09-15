@@ -39,7 +39,7 @@ export function buildKeyfile(
     const passw = multScrypt(
         prePassw, 
         salts[0], 
-        2,
+        200,
     );
 
     const keyfile = expandKey(
