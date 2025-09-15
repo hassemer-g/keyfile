@@ -3,28 +3,6 @@ import { doHashing } from "./deriv.js";
 import { encodeBase91 } from "./base91.js";
 
 
-function doScrypt(
-    passw, 
-    salt, 
-    cost = 19, 
-    outputLength = 64, 
-) {
-
-    const output = scrypt(
-        passw,
-        salt,
-        {
-            N: 2 ** cost, 
-            r: 8, 
-            p: 1, 
-            dkLen: outputLength, 
-        },
-    );
-
-    return output; 
-}
-
-
 export function multScrypt(
     passw, 
     salt, 
@@ -41,11 +19,15 @@ export function multScrypt(
 
         salt = doHashing(`—${counter}—${encodingFunction(salt)}—${iterations}—${cost}—${outputLength}—`);
 
-        output = doScrypt(
-            output, 
+        output = scrypt(
+            output,
             salt,
-            cost,
-            counter === iterations ? outputLength : 64,
+            {
+                N: 2 ** cost,
+                r: 8,
+                p: 1,
+                dkLen: counter === iterations ? outputLength : 64,
+            },
         );
 
         counter++;
