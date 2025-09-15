@@ -17,7 +17,7 @@ export function buildKeyfile(
     if (
         arguments.length < 6
         || arguments.length > 7
-        || !stringInputs.every(v => typeof v === "string" && v.trim())
+        || stringInputs.some(v => typeof v !== "string" || !v.trim())
         || !Number.isSafeInteger(keyfileLength)
         || keyfileLength < 1
         || typeof encodingFunction !== "function"
