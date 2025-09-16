@@ -30,7 +30,7 @@ export function derivSingle(
 
 export function doHashing(
     input, 
-    info = "", 
+    info = "🔑🗝️", 
     outputLength = 64,
     algoForHKDF = sha3_512,
     algoForInfo = blake2b,
