@@ -16,32 +16,34 @@
 
         <p class="subtitle">This tool allows you to build a 800,000-byte keyfile from a series of inputs, including a PIN, a password and the birth dates of your family members, in a deterministic manner</p>
 
-        <p class="disclaimer">Building a key can take up to 10 minutes, depending on your device. The whole process is executed locally in your machine. Don't close the window until the key is finished</p>
+        <p class="disclaimer">Building a keyfile can take up to 10 minutes, depending on your device. The whole process is executed locally on your machine. <span class="highlight">Don't close the window until the key is finished!</span> When finished, the keyfile is either saved automatically, or a window will pop up asking for the directory where to save the file.</p>
 
+        <p class="disclaimer">This tool doesn't work on some browsers, namely: <span class="highlight">Google Chrome</span></p>
+        
         <br>
         
         <div class="form-group">
-            <label for="userInputPIN">Your PIN (digits only, min. length 4):</label>
+            <label for="userInputPIN">Your PIN <span class="disclaimer">(digits only, min. length 4):</span></label>
             <input type="password" id="userInputPIN" placeholder="E.g., 1234">
         </div>
 
         <div class="form-group">
-            <label for="userInputPassw">Your password (min. 20 characters; must include a lowercase letter, an uppercase letter, a digit and a symbol, and must not contain the PIN):</label>
+            <label for="userInputPassw">Your password <span class="disclaimer">(min. 20 characters; must include a lowercase letter, an uppercase letter, a digit and a symbol, and must not contain the PIN):</span></label>
             <input type="password" id="userInputPassw" placeholder="E.g., VERYstrong_password1">
         </div>
 
         <div class="form-group">
-            <label for="userInputFatherBirthDate">Your father's birth date (format: DD/MM/YYYY):</label>
+            <label for="userInputFatherBirthDate">Your father's birth date <span class="disclaimer">(format: DD/MM/YYYY):</span></label>
             <input type="text" id="userInputFatherBirthDate" placeholder="E.g., 01/11/1970">
         </div>
 
         <div class="form-group">
-            <label for="userInputMotherBirthDate">Your mother's birth date (format: DD/MM/YYYY):</label>
+            <label for="userInputMotherBirthDate">Your mother's birth date <span class="disclaimer">(format: DD/MM/YYYY):</span></label>
             <input type="text" id="userInputMotherBirthDate" placeholder="E.g., 31/03/1979">
         </div>
 
         <div class="form-group">
-            <label for="userInputOwnBirthDate">Your own birth date (format: DD/MM/YYYY):</label>
+            <label for="userInputOwnBirthDate">Your own birth date <span class="disclaimer">(format: DD/MM/YYYY):</span></label>
             <input type="text" id="userInputOwnBirthDate" placeholder="E.g., 08/08/2000">
         </div>
 
