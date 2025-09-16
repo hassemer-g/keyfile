@@ -1,7 +1,7 @@
-# keyfile
+# Hassemer's Keyfile Builder
 
-Current version: 0.0
+Current version: 1.0
 
-Release date: 00/00/0000
+Release date: 16/09/2025
 
-To be done...
+If this tool is ever updated, any previous versions will always be kept available here.
