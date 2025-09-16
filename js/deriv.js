@@ -29,9 +29,9 @@ export function derivSingle(
 
 
 export function doHashing(
-    input, 
-    info = "🔑🗝️", 
+    input,
     outputLength = 64,
+    info = "🔑🗝️",
     algoForHKDF = sha3_512,
     algoForInfo = blake2b,
     encodingFunction = encodeBase91,
