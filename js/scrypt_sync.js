@@ -9,15 +9,14 @@ export function multScrypt(
     iterations, 
     cost = 19, 
     outputLength = 64, 
-    encodingFunction = encodeBase91,
 ) {
 
-    let output = doHashing(`—${encodingFunction(passw)}—${iterations}—${cost}—${outputLength}—`);
+    let output = doHashing(`—${encodeBase91(passw)}—${iterations}—${cost}—${outputLength}—`);
 
     let counter = 1;
     do {
 
-        salt = doHashing(`—${counter}—${encodingFunction(salt)}—${iterations}—${cost}—${outputLength}—`);
+        salt = doHashing(`—${counter}—${encodeBase91(salt)}—${iterations}—${cost}—${outputLength}—`);
 
         output = scrypt(
             output,
