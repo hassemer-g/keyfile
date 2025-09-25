@@ -10,7 +10,7 @@ import { encodeBase91 } from "./base91.js";
 export function derivSingle(
     passw, 
     salt, 
-    info = "", 
+    info, 
     outputLength = 64,
     algoForHKDF = sha3_512,
     algoForInfo = blake2b,
@@ -34,7 +34,6 @@ export function doHashing(
     info = "🔑🗝️",
     algoForHKDF = sha3_512,
     algoForInfo = blake2b,
-    encodingFunction = encodeBase91,
 ) {
 
     if (!input || typeof input === "boolean") {
@@ -69,7 +68,7 @@ export function doHashing(
     const hash5 = blake2s(input); 
     const hash6 = blake3(input); 
 
-    const passw = utf8ToBytes(`—${encodingFunction(hash1)}—${encodingFunction(hash2)}—${encodingFunction(hash3)}—${encodingFunction(hash4)}—${encodingFunction(hash5)}—${encodingFunction(hash6)}—${info}—`); 
+    const passw = utf8ToBytes(`—${encodeBase91(hash1)}—${encodeBase91(hash2)}—${encodeBase91(hash3)}—${encodeBase91(hash4)}—${encodeBase91(hash5)}—${encodeBase91(hash6)}—${info}—`); 
     const salt = concatBytes(hash1, hash2, hash3, hash4, hash5, hash6); 
 
     const output = derivSingle(
@@ -89,18 +88,17 @@ export function derivMult(
     passw, 
     salt, 
     numberOfElements, 
-    info = "", 
+    info, 
     outputLength = 64,
     algoForHKDF = sha3_512,
     algoForInfo = blake2b,
-    encodingFunction = encodeBase91,
 ) {
 
     const elements = [];
     for (let i = 1; i <= numberOfElements; i++) {
 
-        passw = doHashing(`—${i}—${encodingFunction(passw)}—${numberOfElements}—${info}—`);
-        salt = doHashing(`—${i}—${encodingFunction(salt)}—${numberOfElements}—${info}—`);
+        passw = doHashing(`—${i}—${encodeBase91(passw)}—${numberOfElements}—${info}—`);
+        salt = doHashing(`—${i}—${encodeBase91(salt)}—${numberOfElements}—${info}—`);
 
         elements.push(derivSingle(
             passw,
@@ -120,20 +118,19 @@ export function expandKey(
     passw, 
     salt, 
     expandedKeyLength, 
-    info = "", 
+    info, 
     algoForHKDF = sha3_512,
     algoForInfo = blake2b,
-    encodingFunction = encodeBase91,
 ) {
     
-    let expandedKey = doHashing(`—${encodingFunction(passw)}—${expandedKeyLength}—${info}—`);
+    let expandedKey = doHashing(`—${encodeBase91(passw)}—${expandedKeyLength}—${info}—`);
 
     for (let i = 1; i < Math.ceil(expandedKeyLength / 64); i++) {
 
-        salt = doHashing(`—${i}—${encodingFunction(salt)}—${expandedKeyLength}—${info}—`);
+        salt = doHashing(`—${i}—${encodeBase91(salt)}—${expandedKeyLength}—${info}—`);
 
         const tempConcat = concatBytes(expandedKey.slice(-32), expandedKey.slice(0, 32));
-        const tempPassw = doHashing(`—${i}—${encodingFunction(tempConcat)}—${expandedKeyLength}—${info}—`);
+        const tempPassw = doHashing(`—${i}—${encodeBase91(tempConcat)}—${expandedKeyLength}—${info}—`);
 
         const newPiece = derivSingle(
             tempPassw,
