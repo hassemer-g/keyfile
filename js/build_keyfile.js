@@ -10,24 +10,20 @@ export function buildKeyfile(
     motherBirthDate, 
     ownBirthDate, 
     keyfileLength, 
-    encodingFunction = encodeBase91,
 ) {
     
-    const stringInputs = [userPIN, userPassw, fatherBirthDate, motherBirthDate, ownBirthDate];
     if (
-        arguments.length < 6
-        || arguments.length > 7
-        || stringInputs.some(v => typeof v !== "string" || !v.trim())
+        arguments.length !== 6
+        || [userPIN, userPassw, fatherBirthDate, motherBirthDate, ownBirthDate].some(v => typeof v !== "string" || !v.trim())
         || !Number.isSafeInteger(keyfileLength)
         || keyfileLength < 1
-        || typeof encodingFunction !== "function"
     ) {
         throw new Error(`Incorrect arguments passed to the "buildKeyfile" function.`);
     }
 
     const salt = doHashing(`—${ownBirthDate}—${fatherBirthDate}—${motherBirthDate}—${userPIN}—${userPassw}—`);
 
-    const prePassw = doHashing(`—${userPIN}—${userPassw}—${ownBirthDate}—${fatherBirthDate}—${motherBirthDate}—${encodingFunction(salt)}—`);
+    const prePassw = doHashing(`—${userPIN}—${userPassw}—${ownBirthDate}—${fatherBirthDate}—${motherBirthDate}—${encodeBase91(salt)}—`);
 
     const salts = derivMult(
         prePassw,
