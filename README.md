@@ -1,6 +1,6 @@
 # Hassemer's Keyfile Builder
 
-Current version: 1.0
+Current version: 1
 
 Release date: 16/09/2025
 
