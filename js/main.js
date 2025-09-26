@@ -125,8 +125,8 @@ async function saveStringToFile(str, suggestedName = "download") {
 
 doButton.addEventListener("click", async () => {
 
-    const PIN = userInputPIN.value.trim():
-    const passw = userInputPassw.value.trim():
+    const PIN = userInputPIN.value.trim();
+    const passw = userInputPassw.value.trim();
 
     userInputPIN.value = "";
     userInputPIN.style.borderColor = "";
