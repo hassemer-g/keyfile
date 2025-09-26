@@ -129,7 +129,12 @@ doButton.addEventListener("click", async () => {
     const passw = userInputPassw.value.trim();
 
     userInputPIN.value = "";
+    userInputPIN.style.borderColor = "";
     userInputPassw.value = "";
+    userInputPassw.style.borderColor = "";
+
+    doButton.disabled = true;
+    doButton.style.backgroundColor = "";
 
     const keyfileBytes = buildKeyfile(
         PIN, 
