@@ -1,112 +1,78 @@
-import { sha256, sha512 } from "./noble-hashes/sha2.js";
-import { sha3_512 } from "./noble-hashes/sha3.js";
-import { blake2b, blake2s } from "./noble-hashes/blake2.js";
-import { blake3 } from "./noble-hashes/blake3.js";
-import { hkdf } from "./noble-hashes/hkdf.js";
-import { utf8ToBytes, concatBytes } from "./noble-hashes/utils.js";
-import { encodeBase91 } from "./base91.js";
+import { concatBytes, utf8ToBytes, hexToBytes, bytesToHex } from "./noble-hashes/utils.mjs";
+import { sha512, sha3, blake2b, blake3, whirlpool } from "./hash-wasm/hash-wasm.mjs";
+import { doArgon2id } from "./argon2id.js";
+import { doHKDF } from "./hkdf.js";
 
 
-export function derivSingle(
-    passw, 
-    salt, 
-    info, 
-    outputLength = 64,
-    algoForHKDF = sha3_512,
-    algoForInfo = blake2b,
-) {
-
-    const output = hkdf(
-        algoForHKDF,
-        passw,
-        salt,
-        algoForInfo(`"derivSingle" — ${outputLength} — ${info}`),
-        outputLength,
-    );
-
-    return output; 
-}
-
-
-export function doHashing(
+export async function doHashing(
     input,
+    rounds = 1,
+    memCost = 1,
+    iterations = 1,
     outputLength = 64,
-    info = "🔑🗝️",
-    algoForHKDF = sha3_512,
-    algoForInfo = blake2b,
 ) {
 
-    if (!input || typeof input === "boolean") {
-        throw new Error(`Input to the "doHashing" function should not be falsy or boolean!`);
-    }
-    
-    if (
-        input instanceof Uint8Array
-    ) {
-        // do nothing
-    } else if (
-        typeof input === "string" && input.trim()
-    ) {
-        input = utf8ToBytes(input);
-    } else if (
-        (typeof input === "number" && input !== Infinity && input !== -Infinity && !(Number.isInteger(input) && !Number.isSafeInteger(input)))
-        || typeof input === "bigint"
-    ) {
-        input = utf8ToBytes(String(input));
-    } else if (
-        typeof input === "object" 
-    ) {
-        input = utf8ToBytes(JSON.stringify(input, null, 0));
-    } else {
-        throw new Error(`Invalid input! Acceptable input types to the "doHashing" function: Uint8Array, string, number, big integer, object or array.`);
-    }
-
-    const hash1 = sha256(input); 
-    const hash2 = sha512(input); 
-    const hash3 = sha3_512(input); 
-    const hash4 = blake2b(input); 
-    const hash5 = blake2s(input); 
-    const hash6 = blake3(input); 
-
-    const passw = utf8ToBytes(`—${encodeBase91(hash1)}—${encodeBase91(hash2)}—${encodeBase91(hash3)}—${encodeBase91(hash4)}—${encodeBase91(hash5)}—${encodeBase91(hash6)}—${info}—`); 
-    const salt = concatBytes(hash1, hash2, hash3, hash4, hash5, hash6); 
-
-    const output = derivSingle(
-        passw, 
-        salt, 
-        `"doHashing" — ${outputLength} — ${info}`, 
-        outputLength,
-        algoForHKDF,
-        algoForInfo,
+    // Initial treatment
+    const initialHash = hexToBytes(await sha3(concatBytes(utf8ToBytes(`${input.length} ${rounds} ${memCost} ${iterations} ${outputLength}`), input)));
+    let output = doHKDF(
+        concatBytes(initialHash, input),
+        initialHash,
+        utf8ToBytes(bytesToHex(initialHash)),
     );
 
-    return output; 
+    const hashFunctions = {
+        sha512,
+        sha3,
+        blake2b,
+        blake3,
+        whirlpool,
+    };
+
+    for (let i = 1; !(i > rounds); i++) {
+
+        const iterationMark = hexToBytes(await sha3(utf8ToBytes(`${i} ${bytesToHex(output)} ${input.length} ${rounds} ${memCost} ${iterations} ${outputLength}`)));
+        const markedInput = concatBytes(iterationMark, input); 
+
+        const hashArray = [];
+        for (const [name, fn] of Object.entries(hashFunctions)) {
+            hashArray.push(hexToBytes(await fn(markedInput)));
+        }
+
+        const concatHashes = concatBytes(...hashArray); 
+
+        output = await doArgon2id(
+            concatHashes,
+            hexToBytes(await whirlpool(concatHashes)),
+            utf8ToBytes(`${i} ${bytesToHex(concatHashes)}`),
+            memCost,
+            iterations,
+            i === rounds ? outputLength : 64,
+        );
+    }
+
+    return output;
 }
 
 
-export function derivMult(
-    passw, 
-    salt, 
-    numberOfElements, 
-    info, 
+export async function derivMult(
+    passw,
+    salt,
+    numberOfElements,
     outputLength = 64,
-    algoForHKDF = sha3_512,
-    algoForInfo = blake2b,
 ) {
 
     const elements = [];
-    for (let i = 1; i <= numberOfElements; i++) {
+    for (let i = 1; !(i > numberOfElements); i++) {
 
-        passw = doHashing(`—${i}—${encodeBase91(passw)}—${numberOfElements}—${info}—`);
-        salt = doHashing(`—${i}—${encodeBase91(salt)}—${numberOfElements}—${info}—`);
+        
+        const prevSaltHex = bytesToHex(salt); 
+        salt = hexToBytes(await sha3(utf8ToBytes(`${i} ${prevSaltHex} ${passw.length} ${numberOfElements} ${outputLength}`)));
 
-        elements.push(derivSingle(
-            passw,
+        elements.push(doHKDF(
+            concatBytes(salt, passw),
             salt,
-            `"derivMult" — ${i} — ${numberOfElements} — ${outputLength} — ${info}`,
+            utf8ToBytes(`${i} ${prevSaltHex}`),
             outputLength,
-            algoForHKDF,
-            algoForInfo,
         ));
     }
 
@@ -114,44 +80,35 @@ export function derivMult(
 }
 
 
-export function expandKey(
-    passw, 
-    salt, 
-    expandedKeyLength, 
-    info, 
-    algoForHKDF = sha3_512,
-    algoForInfo = blake2b,
+export async function expandKey(
+    passw,
+    salt,
+    expandedKeyLength,
+    pieceLength = 64,
 ) {
-    
-    let expandedKey = doHashing(`—${encodeBase91(passw)}—${expandedKeyLength}—${info}—`);
 
-    for (let i = 1; i < Math.ceil(expandedKeyLength / 64); i++) {
+    let expandedKey = await doHashing(utf8ToBytes(`${bytesToHex(passw)} ${bytesToHex(salt)} ${expandedKeyLength} ${pieceLength}`)); 
 
-        salt = doHashing(`—${i}—${encodeBase91(salt)}—${expandedKeyLength}—${info}—`);
+    const rounds = Math.ceil(expandedKeyLength / pieceLength) - 1;
+    for (let i = 1; !(i > rounds); i++) {
 
-        const tempConcat = concatBytes(expandedKey.slice(-32), expandedKey.slice(0, 32));
-        const tempPassw = doHashing(`—${i}—${encodeBase91(tempConcat)}—${expandedKeyLength}—${info}—`);
+        const prevSaltHex = bytesToHex(salt); 
+        salt = hexToBytes(await sha3(utf8ToBytes(`${i} ${prevSaltHex} ${passw.length} ${expandedKeyLength} ${pieceLength}`)));
 
-        const newPiece = derivSingle(
-            tempPassw,
-            salt,
-            `"expandKey" — ${i} — ${expandedKeyLength} — ${info}`,
-            64,
-            algoForHKDF,
-            algoForInfo,
+        const tempConcat = concatBytes(expandedKey.slice(-32), expandedKey.slice(0, 32), passw); 
+
+        const newPiece = doHKDF(
+            tempConcat, 
+            salt, 
+            utf8ToBytes(`${i} ${prevSaltHex}`), 
+            pieceLength, 
+            
         );
 
-        expandedKey = i % 2 === 0 ? concatBytes(newPiece, expandedKey) : concatBytes(expandedKey, newPiece);
-    }
-    
-    for (let i = 1; expandedKey.length > expandedKeyLength; i++) {
-        expandedKey = i % 2 === 0 ? expandedKey.slice(0, expandedKey.length - 1) : expandedKey.slice(1);
-    }
-    
-    if (!(expandedKey instanceof Uint8Array) || expandedKey.length !== expandedKeyLength) {
-        throw new Error(`Function "expandKey" failed.`);
+        expandedKey = i % 2 === 0 ? concatBytes(newPiece, expandedKey) : i % 2 === 1 ? concatBytes(expandedKey, newPiece) : null;
     }
 
     return expandedKey; 
 }
+
 
