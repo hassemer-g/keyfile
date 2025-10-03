@@ -1,6 +1,7 @@
-import { validatePassw } from "./validate_password.js";
+import { valPassw } from "./password.js";
 import { buildKeyfile } from "./build_keyfile.js";
 import { encodeBase91 } from "./base91.js";
+import { formatTime } from "./time.js";
 
 
 const userInputPIN = document.getElementById("userInputPIN");
@@ -9,50 +10,48 @@ const userInputFatherBirthDate = document.getElementById("userInputFatherBirthDa
 const userInputMotherBirthDate = document.getElementById("userInputMotherBirthDate");
 const userInputOwnBirthDate = document.getElementById("userInputOwnBirthDate");
 const doButton = document.getElementById("doButton");
+const resultMessage = document.getElementById("resultMessage");
 const getButton = document.getElementById("getButton");
-
 
 const keyfileLength = 800000;
 let keyfileFinished = false;
 let keyfileString = null;
 
-
-function validatePIN(input) {
+function valPIN(input) {
     return /^\d{4,}$/.test(input);
 }
 
-function validatePasswInput(input) {
-    return validatePassw(input, 20)
+function valPasswInput(input) {
+    return valPassw(input, 20)
         && !input.includes(userInputPIN.value.trim());
 }
 
-function validateBirthDate(input) {
+function valBirthDate(input) {
     return /^\d{2}\/\d{2}\/\d{4}$/.test(input);
 }
 
-function validateOwnBirthDate(input) {
+function valOwnBirthDate(input) {
     return /^\d{2}\/\d{2}\/\d{4}$/.test(input)
         && input !== userInputFatherBirthDate.value.trim()
         && input !== userInputMotherBirthDate.value.trim();
 }
 
 const validators = {
-    userInputPIN: validatePIN,
-    userInputPassw: validatePasswInput,
-    userInputFatherBirthDate: validateBirthDate,
-    userInputMotherBirthDate: validateBirthDate,
-    userInputOwnBirthDate: validateOwnBirthDate,
+    userInputPIN: valPIN,
+    userInputPassw: valPasswInput,
+    userInputFatherBirthDate: valBirthDate,
+    userInputMotherBirthDate: valBirthDate,
+    userInputOwnBirthDate: valOwnBirthDate,
 };
 
-
-function validateButton() {
-
+function valButton() {
+    
     if (
-        validatePIN(userInputPIN.value.trim())
-        && validatePasswInput(userInputPassw.value.trim())
-        && validateBirthDate(userInputFatherBirthDate.value.trim())
-        && validateBirthDate(userInputMotherBirthDate.value.trim())
-        && validateOwnBirthDate(userInputOwnBirthDate.value.trim())
+        valPIN(userInputPIN.value.trim())
+        && valPasswInput(userInputPassw.value.trim())
+        && valBirthDate(userInputFatherBirthDate.value.trim())
+        && valBirthDate(userInputMotherBirthDate.value.trim())
+        && valOwnBirthDate(userInputOwnBirthDate.value.trim())
     ) {
         doButton.disabled = false;
         doButton.style.backgroundColor = "green"; 
@@ -60,7 +59,7 @@ function validateButton() {
         doButton.disabled = true;
         doButton.style.backgroundColor = ""; 
     }
-
+    
     if (
         keyfileFinished
     ) {
@@ -72,7 +71,6 @@ function validateButton() {
     }
 }
 
-
 Object.entries(validators).forEach(([id, fn]) => {
 
     const field = document.getElementById(id);
@@ -82,14 +80,13 @@ Object.entries(validators).forEach(([id, fn]) => {
         field.style.borderColor = isValid ? "green" : "red";
     });
 
-    field.addEventListener("input", validateButton);
+    field.addEventListener("input", valButton);
 });
-
 
 async function saveStringToFile(str, suggestedName = "download") {
 
     const blob = new Blob([str], { type: "application/octet-stream" });
-
+    
     if (window.showSaveFilePicker) {
         
         const handle = await window.showSaveFilePicker({
@@ -101,27 +98,26 @@ async function saveStringToFile(str, suggestedName = "download") {
                 },
             ],
         });
-
+        
         const writable = await handle.createWritable();
-
+        
         await writable.write(blob);
         await writable.close();
 
     } else {
-
+        
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-
+        
         a.download = suggestedName;
-
+        
         document.body.appendChild(a);
         a.click();
         a.remove();
         URL.revokeObjectURL(url);
     }
 }
-
 
 doButton.addEventListener("click", async () => {
 
@@ -136,7 +132,11 @@ doButton.addEventListener("click", async () => {
     doButton.disabled = true;
     doButton.style.backgroundColor = "";
 
-    const keyfileBytes = buildKeyfile(
+    resultMessage.textContent = `Building your keyfile...`;
+
+    const timeBefore = performance.now();
+    
+    const keyfileBytes = await buildKeyfile(
         PIN, 
         passw, 
         userInputFatherBirthDate.value.trim(), 
@@ -145,10 +145,15 @@ doButton.addEventListener("click", async () => {
         keyfileLength, 
     );
 
+    const timeAfter = performance.now();
+    const timeSpent = timeAfter - timeBefore;
+
+    
     if (
         keyfileBytes instanceof Uint8Array
         && keyfileBytes.length === 800000
     ) {
+        resultMessage.textContent = `Time spent building the keyfile: ${formatTime(timeSpent)}`;
         keyfileString = encodeBase91(keyfileBytes);
         keyfileFinished = true;
         getButton.disabled = false;
@@ -156,11 +161,10 @@ doButton.addEventListener("click", async () => {
     }
 });
 
-
 getButton.addEventListener("click", async () => {
 
     try {
-
+        
         await saveStringToFile(keyfileString, "keyfile");
         console.log(`
     Keyfile successfully built and saved.
@@ -172,13 +176,11 @@ getButton.addEventListener("click", async () => {
     Error in save flow!
     ${err.message}
         `);
-
         alert("Failed to save keyfile: " + (err && err.message ? err.message : err));
     }
 });
 
-
-validateButton();
+valButton();
 
 
 
