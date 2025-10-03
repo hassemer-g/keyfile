@@ -5,18 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hassemer's Keyfile Builder</title>
     <link rel="stylesheet" href="./css/styles.css">
-    <script type="module" src="./js/main.js"></script>
+    <script type="module" src="./src/main.js"></script>
 </head>
 
 <body>
 
-    <!-- Main Menu -->
     <div id="mainMenu">
+
     <h1>Hassemer's Keyfile Builder</h1>
 
         <p class="subtitle">This tool allows you to build a 800,000-byte keyfile from a series of inputs, including a PIN, a password and the birth dates of your family members, in a deterministic manner</p>
 
-        <p class="disclaimer">Building a keyfile can take a long time, up to 10 minutes on a computer, or a few hours on mobile devices. The whole process is executed locally on your machine. <span class="highlight">Don't close the tab until the key is finished!</span> You can safely change tabs and do other things on your device while the keyfile is being built.</p>
+        <p class="disclaimer">Building a keyfile can take a long time, up to 30 minutes or even longer, depending on your device. The whole process is executed locally on your machine. <span class="highlight">Don't close the tab until the key is finished!</span> You can safely change tabs and do other things on your device while the keyfile is being built.</p>
 
         <br>
 
@@ -47,12 +47,16 @@
 
         <button id="doButton" disabled>Build keyfile</button>
 
+        <p id="resultMessage"></p>
+
         <button id="getButton" disabled>Download keyfile</button>
 
         <p class="footer">Made with ❤️ by <a href="https://peakd.com/@hassemer" target="_blank">@hassemer</a></p>
-        <p class="footer">v. 1</p>
+
         <br><br>
+
         <p class="disclaimer"><b>Disclaimer:</b> This tool is provided "as-is", absolutely without guarantees. <span class="highlight">Use it at your own risk.</span> Please be careful 🙏🏻</p>
+
     </div>
 
 </body>
