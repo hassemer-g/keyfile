@@ -1,50 +1,38 @@
-import { encodeBase91 } from "./base91.js";
+import { utf8ToBytes, bytesToHex, concatBytes } from "./noble-hashes/utils.mjs";
 import { doHashing, derivMult, expandKey } from "./deriv.js";
-import { multScrypt } from "./scrypt_sync.js";
 
 
-export function buildKeyfile(
-    userPIN, 
-    userPassw, 
-    fatherBirthDate, 
-    motherBirthDate, 
-    ownBirthDate, 
-    keyfileLength, 
+export async function buildKeyfile(
+    userPIN,
+    userPassw,
+    fatherBirthDate,
+    motherBirthDate,
+    ownBirthDate,
+    keyfileLength,
 ) {
     
-    if (
-        arguments.length !== 6
-        || [userPIN, userPassw, fatherBirthDate, motherBirthDate, ownBirthDate].some(v => typeof v !== "string" || !v.trim())
-        || !Number.isSafeInteger(keyfileLength)
-        || keyfileLength < 1
-    ) {
-        throw new Error(`Incorrect arguments passed to the "buildKeyfile" function.`);
-    }
-
-    const salt = doHashing(`—${ownBirthDate}—${fatherBirthDate}—${motherBirthDate}—${userPIN}—${userPassw}—`);
-
-    const prePassw = doHashing(`—${userPIN}—${userPassw}—${ownBirthDate}—${fatherBirthDate}—${motherBirthDate}—${encodeBase91(salt)}—`);
-
-    const salts = derivMult(
+    const salt = await doHashing(utf8ToBytes(`${ownBirthDate} ${fatherBirthDate} ${motherBirthDate} ${userPIN} ${userPassw} ${keyfileLength}`));
+    const prePassw = await doHashing(utf8ToBytes(`${userPIN} ${userPassw} ${ownBirthDate} ${fatherBirthDate} ${motherBirthDate} ${keyfileLength} ${bytesToHex(salt)}`));
+    
+    const elements = await derivMult(
         prePassw,
         salt,
-        2,
-        `"buildKeyfile" — 2 salts — ${keyfileLength} — ${ownBirthDate} — ${fatherBirthDate} — ${motherBirthDate}`,
+        3,
     );
 
-    const passw = multScrypt(
-        prePassw, 
-        salts[0], 
-        200,
+    const passw = await doHashing(
+        elements[1],
+        1000,
+        1024,
     );
 
-    const keyfile = expandKey(
-        passw, 
-        salts[1], 
-        keyfileLength, 
-        `"buildKeyfile" — key expansion — ${keyfileLength} — ${ownBirthDate} — ${fatherBirthDate} — ${motherBirthDate}`,
+    const keyfile = await expandKey(
+        concatBytes(passw, elements[2]),
+        elements[0],
+        keyfileLength,
     );
 
     return keyfile; 
 }
+
 
