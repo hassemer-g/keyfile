@@ -1,10 +1,8 @@
-import {
-    customBase91CharSet,
-} from "./charsets.js";
+import { customBase91CharSet } from "./charsets.js";
 
 
 export function encodeBase91(
-    data, 
+    data,
 ) {
 
     if (!(data instanceof Uint8Array)) {
