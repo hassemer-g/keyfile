@@ -1,7 +1,7 @@
 import { valPassw } from "./val.js";
-import { buildKeyfile } from "./build_keyfile.js";
 import { encodeBase91 } from "./base91.js";
 import { formatTime } from "./time.js";
+import { buildKeyfile } from "./build_keyfile.js";
 
 const userInputPIN = document.getElementById("userInputPIN");
 const userInputPassw = document.getElementById("userInputPassw");
