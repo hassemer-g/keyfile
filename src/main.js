@@ -149,7 +149,7 @@ doButton.addEventListener("click", async () => {
 
     if (
         keyfileBytes instanceof Uint8Array
-        && keyfileBytes.length === 800000
+        && keyfileBytes.length === keyfileLength
     ) {
         resultMessage.textContent = `Time spent building the keyfile: ${formatTime(timeSpent)}`;
         keyfileString = encodeBase91(keyfileBytes);
