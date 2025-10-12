@@ -12,7 +12,7 @@ const doButton = document.getElementById("doButton");
 const resultMessage = document.getElementById("resultMessage");
 const getButton = document.getElementById("getButton");
 
-const keyfileLength = 800000;
+const keyfileLength = 1000000;
 let keyfileFinished = false;
 let keyfileString = null;
 
