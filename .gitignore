@@ -1,9 +1,8 @@
 # website-related
 css/
-js/
 .nojekyll
 index.html
-
+src/main.js
 
 
 
