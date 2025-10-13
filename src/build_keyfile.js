@@ -8,31 +8,39 @@ export async function buildKeyfile(
     motherBirthDate,
     ownBirthDate,
     keyfileLength,
+    HCs,
 ) {
 
-    const salt = await doHashing(utf8ToBytes(`${ownBirthDate} ${fatherBirthDate} ${motherBirthDate} ${userPIN} ${userPassw} ${keyfileLength}`));
+    const salt = await doHashing(
+        utf8ToBytes(`${ownBirthDate} ${fatherBirthDate} ${motherBirthDate} ${userPIN} ${userPassw} ${keyfileLength}`),
+        HCs,
+    );
 
-    const prePassw = await doHashing(utf8ToBytes(`${userPIN} ${userPassw} ${ownBirthDate} ${fatherBirthDate} ${motherBirthDate} ${keyfileLength} ${bytesToHex(salt)}`));
+    const prePassw = await doHashing(
+        utf8ToBytes(`${userPIN} ${userPassw} ${ownBirthDate} ${fatherBirthDate} ${motherBirthDate} ${keyfileLength} ${bytesToHex(salt)}`),
+        HCs,
+    );
 
-    const elements = await derivMult(
+    const elements = derivMult(
         prePassw,
         salt,
         3,
+        HCs,
     );
 
     const passw = await doHashing(
         elements[1],
+        HCs,
         1000,
         1024,
     );
 
-    const keyfile = await expandKey(
+    const keyfile = expandKey(
         concatBytes(passw, elements[2]),
         elements[0],
         keyfileLength,
-
+        HCs,
     );
 
     return keyfile;
 }
-
