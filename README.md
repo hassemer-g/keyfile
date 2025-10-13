@@ -1,9 +1,12 @@
 # Hassemer's Keyfile Builder
-
+<br>
+<br>
 Official release date: 13/10/2025
-
+<br>
+<br>
 In order to ensure compatibility, any updates applied to this tool won't affect the resulting keyfiles in any way. This is to ensure you will be able to retrieve your keyfile, no matter when.
-
+<br>
+<br>
 Dependencies:<br>
 → https://github.com/Daninet/hash-wasm<br>
 → https://github.com/paulmillr/noble-hashes<br>
