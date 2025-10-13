@@ -1,4 +1,4 @@
-import { createSHA512, createSHA3, createBLAKE2b, createBLAKE3, createWhirlpool } from "hash-wasm";
+import { createSHA512, createSHA3, createBLAKE2b, createBLAKE3, createWhirlpool } from "./hash-wasm/hash-wasm.mjs";
 import { valPassw } from "./val.js";
 import { buildKeyfile } from "./build_keyfile.js";
 import { encodeBase91 } from "./base91.js";
