@@ -1,6 +1,5 @@
 # Hassemer's Keyfile Builder
-<br>
-<br>
+
 Official release date: 13/10/2025
 <br>
 <br>
@@ -10,7 +9,7 @@ In order to ensure compatibility, any updates applied to this tool won't affect 
 Dependencies:<br>
 → https://github.com/Daninet/hash-wasm<br>
 → https://github.com/paulmillr/noble-hashes<br>
-
+<br>
 If you choose to run the JS code directly (the "script.js" file) I recommend using Node.js; the following packages are required:<br>
 → readline-sync<br>
 → @noble/hashes<br>
