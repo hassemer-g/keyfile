@@ -1,7 +1,8 @@
+import { createSHA512, createSHA3, createBLAKE2b, createBLAKE3, createWhirlpool } from "hash-wasm";
 import { valPassw } from "./val.js";
+import { buildKeyfile } from "./build_keyfile.js";
 import { encodeBase91 } from "./base91.js";
 import { formatTime } from "./time.js";
-import { buildKeyfile } from "./build_keyfile.js";
 
 const userInputPIN = document.getElementById("userInputPIN");
 const userInputPassw = document.getElementById("userInputPassw");
@@ -11,6 +12,14 @@ const userInputOwnBirthDate = document.getElementById("userInputOwnBirthDate");
 const doButton = document.getElementById("doButton");
 const resultMessage = document.getElementById("resultMessage");
 const getButton = document.getElementById("getButton");
+
+const HCs = {
+    sha2: await createSHA512(),
+    sha3: await createSHA3(),
+    blake2: await createBLAKE2b(),
+    blake3: await createBLAKE3(),
+    whirlpool: await createWhirlpool(),
+};
 
 const keyfileLength = 1000000;
 let keyfileFinished = false;
@@ -108,9 +117,7 @@ async function saveStringToFile(str, suggestedName = "download") {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-
         a.download = suggestedName;
-
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -122,17 +129,13 @@ doButton.addEventListener("click", async () => {
 
     const PIN = userInputPIN.value.trim();
     const passw = userInputPassw.value.trim();
-
     userInputPIN.value = "";
     userInputPIN.style.borderColor = "";
     userInputPassw.value = "";
     userInputPassw.style.borderColor = "";
-
     doButton.disabled = true;
     doButton.style.backgroundColor = "";
-
     resultMessage.textContent = `Building your keyfile...`;
-
     const timeBefore = performance.now();
 
     const keyfileBytes = await buildKeyfile(
@@ -142,6 +145,7 @@ doButton.addEventListener("click", async () => {
         userInputMotherBirthDate.value.trim(),
         userInputOwnBirthDate.value.trim(),
         keyfileLength,
+        HCs,
     );
 
     const timeAfter = performance.now();
@@ -181,3 +185,4 @@ getButton.addEventListener("click", async () => {
 });
 
 valButton();
+
