@@ -4,11 +4,11 @@ export function valPassw(
     minLength = 8,
 ) {
 
-    if (typeof input !== "string") return false;
-
     if (minLength < 4) {
         throw new Error(`Incorrect parameters passed to the "valPassw" function.`);
     }
+
+    if (typeof input !== "string") return false;
 
     if (input.length < minLength) return false;
 
