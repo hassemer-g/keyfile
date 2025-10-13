@@ -8,3 +8,9 @@ Dependencies:<br>
 → https://github.com/Daninet/hash-wasm<br>
 → https://github.com/paulmillr/noble-hashes<br>
 
+If you choose to run the JS code directly (the "script.js" file) I recommend using Node.js; the following packages are required:<br>
+→ readline-sync<br>
+→ @noble/hashes<br>
+→ hash-wasm<br>
+You can install them all with:<br>
+npm install readline-sync @noble/hashes hash-wasm<br>
