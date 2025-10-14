@@ -159,7 +159,7 @@ function doHKDF(hasher, ikm, salt = undefined, info = undefined, length = 64) {
     if (
         arguments.length < 2
         || arguments.length > 5
-        || !(ikm instanceof Uint8Array))
+        || !(ikm instanceof Uint8Array)
         || ikm.length < 1
         || [salt, info].some(v => (v && !(v instanceof Uint8Array)))
         || !Number.isSafeInteger(length)
