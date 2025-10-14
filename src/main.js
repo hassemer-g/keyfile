@@ -1,6 +1,4 @@
-import { concatBytes, utf8ToBytes, bytesToHex } from "./noble-hashes/utils.mjs";
-import { blake512 } from "./noble-hashes/blake1.mjs";
-import { hkdf } from "./noble-hashes/hkdf.mjs";
+import { utf8ToBytes, bytesToHex } from "./noble-hashes/utils.mjs";
 import { createSHA512, createSHA3, createBLAKE2b, createBLAKE3, createWhirlpool, argon2id } from "./hash-wasm/hash-wasm.mjs";
 
 const customBase91CharSet = "!#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_abcdefghijklmnopqrstuvwxyz{|}~";
@@ -92,22 +90,114 @@ function formatTime(
         : parts[0];
 }
 
-function doHKDF(
-    passw,
-    salt,
-    info,
-    outputLength = 64,
-) {
+function isUint8Array(v) {
+  return v instanceof Uint8Array;
+}
 
-    const output = hkdf(
-        blake512,
-        passw,
-        salt,
-        info,
-        outputLength,
-    );
+function clean(...arrays) {
+  for (const a of arrays) if (isUint8Array(a)) a.fill(0);
+}
 
-    return output;
+function concatBytes(...arrs) {
+  let len = 0;
+  for (const a of arrs) {
+    if (!isUint8Array(a)) throw new Error('concatBytes expects Uint8Array arguments');
+    len += a.length;
+  }
+  const out = new Uint8Array(len);
+  let off = 0;
+  for (const a of arrs) {
+    out.set(a, off);
+    off += a.length;
+  }
+  return out;
+}
+
+function cloneHasher(baseHasher, baseState) {
+  const h = baseHasher;
+  h.load(baseState);
+  return h;
+}
+
+function hmacSync(hasher, baseState, key, msg, blockLen, outputLen) {
+
+  if (key.length > blockLen) {
+    hasher.load(baseState);
+    hasher.update(key);
+    key = hasher.digest('binary');
+    hasher.init();
+  }
+
+  const keyPadded = new Uint8Array(blockLen);
+  keyPadded.set(key.length ? key : new Uint8Array(0));
+  const ipad = new Uint8Array(blockLen);
+  const opad = new Uint8Array(blockLen);
+  for (let i = 0; i < blockLen; i++) {
+    const b = keyPadded[i];
+    ipad[i] = b ^ 0x36;
+    opad[i] = b ^ 0x5c;
+  }
+
+  hasher.load(baseState);
+  hasher.update(ipad);
+  hasher.update(msg);
+  const inner = hasher.digest('binary');
+  hasher.init();
+
+  hasher.load(baseState);
+  hasher.update(opad);
+  hasher.update(inner);
+  const out = hasher.digest('binary');
+  hasher.init();
+
+  clean(keyPadded, ipad, opad, inner);
+  return out;
+}
+
+function doHKDF(hasher, ikm, salt = undefined, info = undefined, length = 64) {
+
+    if (
+        arguments.length < 2
+        || arguments.length > 5
+        || !(ikm instanceof Uint8Array))
+        || ikm.length < 1
+        || [salt, info].some(v => (v && !(v instanceof Uint8Array)))
+        || !Number.isSafeInteger(length)
+        || length < 1
+        || length > 64
+        || !hasher
+
+    ) {
+        throw new Error(`Incorrect arguments passed to the "doHKDF" function.`);
+    }
+
+    const outputLen = hasher.digestSize;
+    const blockLen = hasher.blockSize;
+    if (!outputLen || !blockLen) throw new Error('Hasher must provide digestSize and blockSize');
+
+    if (length > 255 * outputLen) throw new Error('Length should be <= 255 * HashLen');
+    if (salt === undefined) salt = new Uint8Array(outputLen);
+    if (info === undefined) info = new Uint8Array(0);
+
+    hasher.init();
+    const baseState = hasher.save();
+
+    const prk = hmacSync(hasher, baseState, salt, ikm, blockLen, outputLen);
+
+    const blocks = Math.ceil(length / outputLen);
+    const okmFull = new Uint8Array(blocks * outputLen);
+    let prev = new Uint8Array(0);
+
+    for (let i = 0; i < blocks; i++) {
+        const counter = new Uint8Array([i + 1]);
+        const msg = concatBytes(prev, info, counter);
+        const T = hmacSync(hasher, baseState, prk, msg, blockLen, outputLen);
+        okmFull.set(T, i * outputLen);
+        prev = T;
+    }
+
+    clean(prev, prk);
+    return okmFull.slice(0, length);
 }
 
 async function doArgon2id(
@@ -142,11 +232,12 @@ async function doHashing(
     outputLength = 64,
 ) {
 
-    HCs.sha3.update(concatBytes(utf8ToBytes(`${input.length} ${rounds} ${memCost} ${iterations} ${outputLength}`), input));
-    const initialHash = HCs.sha3.digest("binary");
-    HCs.sha3.init();
+    HCs.whirlpool.update(concatBytes(utf8ToBytes(`${input.length} ${rounds} ${memCost} ${iterations} ${outputLength}`), input));
+    const initialHash = HCs.whirlpool.digest("binary");
+    HCs.whirlpool.init();
 
     let output = doHKDF(
+        HCs.sha3,
         concatBytes(initialHash, input),
         initialHash,
         utf8ToBytes(bytesToHex(initialHash)),
@@ -169,7 +260,7 @@ async function doHashing(
 
         const concatHashes = concatBytes(...hashArray);
 
-        HCs.whirlpool.update(concatHashes);
+        HCs.whirlpool.update(concatBytes(utf8ToBytes(`${i}`), concatHashes));
         const salt = HCs.whirlpool.digest("binary");
         HCs.whirlpool.init();
 
@@ -199,11 +290,12 @@ function derivMult(
 
         const prevSaltHex = bytesToHex(salt);
 
-        HCs.sha3.update(utf8ToBytes(`${i} ${prevSaltHex} ${passw.length} ${numberOfElements} ${outputLength}`));
-        salt = HCs.sha3.digest("binary");
-        HCs.sha3.init();
+        HCs.blake2.update(utf8ToBytes(`${i} ${prevSaltHex} ${passw.length} ${numberOfElements} ${outputLength}`));
+        salt = HCs.blake2.digest("binary");
+        HCs.blake2.init();
 
         elements.push(doHKDF(
+            HCs.sha3,
             concatBytes(salt, passw),
             salt,
             utf8ToBytes(`${i} ${prevSaltHex}`),
@@ -222,29 +314,56 @@ function expandKey(
     pieceLength = 64,
 ) {
 
-    HCs.whirlpool.update(utf8ToBytes(`${bytesToHex(passw)} ${bytesToHex(salt)} ${expandedKeyLength} ${pieceLength}`));
-    let expandedKey = HCs.whirlpool.digest("binary");
+    const passwHex = bytesToHex(passw);
+    const saltHex = bytesToHex(salt);
+
+    HCs.whirlpool.update(utf8ToBytes(`${passwHex} ${saltHex} ${expandedKeyLength} ${pieceLength}`));
+    const wpInit = HCs.whirlpool.digest("binary");
     HCs.whirlpool.init();
 
+    HCs.sha3.update(utf8ToBytes(`${bytesToHex(wpInit)} ${passwHex} ${saltHex} ${expandedKeyLength} ${pieceLength}`));
+    let expandedKey = HCs.sha3.digest("binary");
+    HCs.sha3.init();
+
     const rounds = Math.ceil(expandedKeyLength / pieceLength) - 1;
+    let itSalt = salt;
     for (let i = 1; !(i > rounds); i++) {
 
-        const prevSaltHex = bytesToHex(salt);
+        const prevItSaltHex = bytesToHex(itSalt);
 
-        HCs.sha3.update(utf8ToBytes(`${i} ${prevSaltHex} ${passw.length} ${expandedKeyLength} ${pieceLength}`));
-        salt = HCs.sha3.digest("binary");
-        HCs.sha3.init();
+        HCs.blake2.update(utf8ToBytes(`${i} ${prevItSaltHex} ${saltHex} ${passw.length} ${expandedKeyLength} ${pieceLength}`));
+        itSalt = HCs.blake2.digest("binary");
+        HCs.blake2.init();
 
-        const tempConcat = concatBytes(expandedKey.slice(-32), expandedKey.slice(0, 32), passw);
+        const itConcat = concatBytes(expandedKey, passw);
+
+        if (
+            [itSalt, itConcat].some(v => !(v instanceof Uint8Array))
+            || itSalt.length !== 64
+            || itConcat.length !== (64 * i) + passw.length
+            || [passwHex, saltHex, prevItSaltHex].some(v => typeof v !== "string" || !v.trim())
+        ) {
+            throw new Error(`Key expansion failed (invalid intermediates generated).`);
+        }
 
         const newPiece = doHKDF(
-            tempConcat,
-            salt,
-            utf8ToBytes(`${i} ${prevSaltHex}`),
+            HCs.sha3,
+            itConcat,
+            itSalt,
+            utf8ToBytes(`${i} ${prevItSaltHex}`),
             pieceLength,
         );
 
-        expandedKey = i % 2 === 0 ? concatBytes(newPiece, expandedKey) : i % 2 === 1 ? concatBytes(expandedKey, newPiece) : null;
+        const len = Math.min(expandedKey.length, newPiece.length);
+        let order = 0;
+        for (let j = 0; j < len; j++) {
+            if (expandedKey[j] !== newPiece[j]) {
+                order = expandedKey[j] - newPiece[j];
+                break;
+            }
+        }
+        if (order === 0) order = expandedKey.length - newPiece.length;
+        expandedKey = order > 0 ? concatBytes(expandedKey, newPiece) : concatBytes(newPiece, expandedKey);
     }
 
     return expandedKey;
