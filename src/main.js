@@ -101,7 +101,7 @@ function clean(...arrays) {
 function concatBytes(...arrs) {
   let len = 0;
   for (const a of arrs) {
-    if (!isUint8Array(a)) throw new Error('concatBytes expects Uint8Array arguments');
+    if (!isUint8Array(a)) throw new Error("concatBytes expects Uint8Array arguments");
     len += a.length;
   }
   const out = new Uint8Array(len);
@@ -113,18 +113,17 @@ function concatBytes(...arrs) {
   return out;
 }
 
-function cloneHasher(baseHasher, baseState) {
-  const h = baseHasher;
-  h.load(baseState);
-  return h;
-}
-
-function hmacSync(hasher, baseState, key, msg, blockLen, outputLen) {
+function hmacSync(
+  hasher,
+  key,
+  msg,
+  blockLen,
+  outputLen,
+) {
 
   if (key.length > blockLen) {
-    hasher.load(baseState);
     hasher.update(key);
-    key = hasher.digest('binary');
+    key = hasher.digest("binary");
     hasher.init();
   }
 
@@ -138,51 +137,40 @@ function hmacSync(hasher, baseState, key, msg, blockLen, outputLen) {
     opad[i] = b ^ 0x5c;
   }
 
-  hasher.load(baseState);
   hasher.update(ipad);
   hasher.update(msg);
-  const inner = hasher.digest('binary');
+  const inner = hasher.digest("binary");
   hasher.init();
 
-  hasher.load(baseState);
   hasher.update(opad);
   hasher.update(inner);
-  const out = hasher.digest('binary');
+  const out = hasher.digest("binary");
   hasher.init();
 
   clean(keyPadded, ipad, opad, inner);
   return out;
 }
 
-function doHKDF(hasher, ikm, salt = undefined, info = undefined, length = 64) {
-
-    if (
-        arguments.length < 2
-        || arguments.length > 5
-        || !(ikm instanceof Uint8Array)
-        || ikm.length < 1
-        || [salt, info].some(v => (v && !(v instanceof Uint8Array)))
-        || !Number.isSafeInteger(length)
-        || length < 1
-        || length > 64
-        || !hasher
-
-    ) {
-        throw new Error(`Incorrect arguments passed to the "doHKDF" function.`);
-    }
+export function doHKDF(
+  hasher,
+  ikm,
+  salt = undefined,
+  info = new Uint8Array(0),
+  length = 64,
+) {
 
     const outputLen = hasher.digestSize;
     const blockLen = hasher.blockSize;
-    if (!outputLen || !blockLen) throw new Error('Hasher must provide digestSize and blockSize');
 
-    if (length > 255 * outputLen) throw new Error('Length should be <= 255 * HashLen');
     if (salt === undefined) salt = new Uint8Array(outputLen);
-    if (info === undefined) info = new Uint8Array(0);
 
-    hasher.init();
-    const baseState = hasher.save();
-
-    const prk = hmacSync(hasher, baseState, salt, ikm, blockLen, outputLen);
+    const prk = hmacSync(
+      hasher,
+      salt,
+      ikm,
+      blockLen,
+      outputLen,
+    );
 
     const blocks = Math.ceil(length / outputLen);
     const okmFull = new Uint8Array(blocks * outputLen);
@@ -191,7 +179,14 @@ function doHKDF(hasher, ikm, salt = undefined, info = undefined, length = 64) {
     for (let i = 0; i < blocks; i++) {
         const counter = new Uint8Array([i + 1]);
         const msg = concatBytes(prev, info, counter);
-        const T = hmacSync(hasher, baseState, prk, msg, blockLen, outputLen);
+        const T = hmacSync(
+          hasher,
+          prk,
+          msg,
+          blockLen,
+          outputLen,
+        );
+
         okmFull.set(T, i * outputLen);
         prev = T;
     }
@@ -336,15 +331,6 @@ function expandKey(
         HCs.blake2.init();
 
         const itConcat = concatBytes(expandedKey, passw);
-
-        if (
-            [itSalt, itConcat].some(v => !(v instanceof Uint8Array))
-            || itSalt.length !== 64
-            || itConcat.length !== (64 * i) + passw.length
-            || [passwHex, saltHex, prevItSaltHex].some(v => typeof v !== "string" || !v.trim())
-        ) {
-            throw new Error(`Key expansion failed (invalid intermediates generated).`);
-        }
 
         const newPiece = doHKDF(
             HCs.sha3,
@@ -517,18 +503,14 @@ async function saveStringToFile(str, suggestedName = "download") {
         });
 
         const writable = await handle.createWritable();
-
         await writable.write(blob);
         await writable.close();
 
     } else {
-
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-
         a.download = suggestedName;
-
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -596,7 +578,6 @@ getButton.addEventListener("click", async () => {
 
         alert("Failed to save keyfile: " + (err && err.message ? err.message : err));
     }
-
 });
 
 valButton();
