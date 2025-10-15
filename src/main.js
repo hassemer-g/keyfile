@@ -151,7 +151,7 @@ function hmacSync(
   return out;
 }
 
-export function doHKDF(
+function doHKDF(
   hasher,
   ikm,
   salt = undefined,
