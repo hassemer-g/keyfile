@@ -2,9 +2,26 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import readlineSync from "readline-sync";
-
 import { createSHA512, createSHA3, createBLAKE2b, createBLAKE3, createWhirlpool, argon2id } from "hash-wasm";
-import { utf8ToBytes, bytesToHex } from "@noble/hashes/utils";
+
+function utf8ToBytes(str) {
+    if (typeof str !== "string") throw new Error("string expected");
+    return new Uint8Array(new TextEncoder().encode(str));
+}
+
+const hasHexBuiltin = (() => typeof Uint8Array.from([]).toHex === "function" && typeof Uint8Array.fromHex === "function")();
+const hexes = Array.from({ length: 256 }, (_, i) => i.toString(16).padStart(2, "0"));
+function bytesToHex(bytes) {
+    if (!(bytes instanceof Uint8Array)) throw new Error("bytesToHex expects Uint8Array input");
+
+    if (hasHexBuiltin) return bytes.toHex();
+
+    let hex = "";
+    for (let i = 0; i < bytes.length; i++) {
+        hex += hexes[bytes[i]];
+    }
+    return hex;
+}
 
 const customBase91CharSet = "!#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_abcdefghijklmnopqrstuvwxyz{|}~";
 
