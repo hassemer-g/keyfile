@@ -255,12 +255,12 @@ async function doHashing(
 
         const concatHashes = concatBytes(...hashArray);
 
-        HCs.whirlpool.update(concatBytes(utf8ToBytes(`${i}`), concatHashes));
+        HCs.whirlpool.update(concatBytes(output, concatHashes));
         const salt = HCs.whirlpool.digest("binary");
         HCs.whirlpool.init();
 
         output = await doArgon2id(
-            concatHashes,
+            concatBytes(concatHashes, input),
             salt,
             utf8ToBytes(`${i} ${bytesToHex(concatHashes)}`),
             memCost,
@@ -340,16 +340,15 @@ function expandKey(
             pieceLength,
         );
 
-        const len = Math.min(expandedKey.length, newPiece.length);
+        const len = Math.min(itSalt.length, salt.length);
         let order = 0;
         for (let j = 0; j < len; j++) {
-            if (expandedKey[j] !== newPiece[j]) {
-                order = expandedKey[j] - newPiece[j];
+            if (itSalt[j] !== salt[j]) {
+                order = itSalt[j] - salt[j];
                 break;
             }
         }
-        if (order === 0) order = expandedKey.length - newPiece.length;
-        expandedKey = order > 0 ? concatBytes(expandedKey, newPiece) : concatBytes(newPiece, expandedKey);
+        expandedKey = order < 0 ? concatBytes(newPiece, expandedKey) : concatBytes(expandedKey, newPiece);
     }
 
     return expandedKey;
