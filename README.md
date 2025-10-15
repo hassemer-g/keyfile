@@ -13,4 +13,4 @@ If you choose to run the JS code directly (the "script.js" file) I recommend usi
 → readline-sync<br>
 → hash-wasm<br>
 You can install them all with:<br>
-npm install readline-sync @noble/hashes hash-wasm<br>
+npm install readline-sync hash-wasm<br>
