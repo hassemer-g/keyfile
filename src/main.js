@@ -19,6 +19,21 @@ function bytesToHex(bytes) {
     return hex;
 }
 
+function concatBytes(...arrs) {
+    let len = 0;
+    for (const a of arrs) {
+        if (!(a instanceof Uint8Array)) throw new Error("concatBytes expects Uint8Array arguments");
+        len += a.length;
+    }
+    const out = new Uint8Array(len);
+    let off = 0;
+    for (const a of arrs) {
+        out.set(a, off);
+        off += a.length;
+    }
+    return out;
+}
+
 const customBase91CharSet = "!#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_abcdefghijklmnopqrstuvwxyz{|}~";
 
 function encodeBase91(
@@ -108,86 +123,66 @@ function formatTime(
         : parts[0];
 }
 
-function isUint8Array(v) {
-  return v instanceof Uint8Array;
-}
-
 function clean(...arrays) {
-  for (const a of arrays) if (isUint8Array(a)) a.fill(0);
-}
-
-function concatBytes(...arrs) {
-  let len = 0;
-  for (const a of arrs) {
-    if (!isUint8Array(a)) throw new Error("concatBytes expects Uint8Array arguments");
-    len += a.length;
-  }
-  const out = new Uint8Array(len);
-  let off = 0;
-  for (const a of arrs) {
-    out.set(a, off);
-    off += a.length;
-  }
-  return out;
+    for (const a of arrays) if (isUint8Array(a)) a.fill(0);
 }
 
 function hmacSync(
-  hasher,
-  key,
-  msg,
-  blockLen,
-  outputLen,
+    hasher,
+    key,
+    msg,
+    blockLen,
+    outputLen,
 ) {
 
-  if (key.length > blockLen) {
-    hasher.update(key);
-    key = hasher.digest("binary");
+    if (key.length > blockLen) {
+        hasher.update(key);
+        key = hasher.digest("binary");
+        hasher.init();
+    }
+
+    const keyPadded = new Uint8Array(blockLen);
+    keyPadded.set(key.length ? key : new Uint8Array(0));
+    const ipad = new Uint8Array(blockLen);
+    const opad = new Uint8Array(blockLen);
+    for (let i = 0; i < blockLen; i++) {
+        const b = keyPadded[i];
+        ipad[i] = b ^ 0x36;
+        opad[i] = b ^ 0x5c;
+    }
+
+    hasher.update(ipad);
+    hasher.update(msg);
+    const inner = hasher.digest("binary");
     hasher.init();
-  }
 
-  const keyPadded = new Uint8Array(blockLen);
-  keyPadded.set(key.length ? key : new Uint8Array(0));
-  const ipad = new Uint8Array(blockLen);
-  const opad = new Uint8Array(blockLen);
-  for (let i = 0; i < blockLen; i++) {
-    const b = keyPadded[i];
-    ipad[i] = b ^ 0x36;
-    opad[i] = b ^ 0x5c;
-  }
+    hasher.update(opad);
+    hasher.update(inner);
+    const out = hasher.digest("binary");
+    hasher.init();
 
-  hasher.update(ipad);
-  hasher.update(msg);
-  const inner = hasher.digest("binary");
-  hasher.init();
-
-  hasher.update(opad);
-  hasher.update(inner);
-  const out = hasher.digest("binary");
-  hasher.init();
-
-  clean(keyPadded, ipad, opad, inner);
-  return out;
+    clean(keyPadded, ipad, opad, inner);
+    return out;
 }
 
 function doHKDF(
-  hasher,
-  ikm,
-  salt = undefined,
-  info = new Uint8Array(0),
-  length = 64,
+    hasher,
+    ikm,
+    salt = undefined,
+    info = new Uint8Array(0),
+    length = 64,
 ) {
 
     const outputLen = hasher.digestSize;
     const blockLen = hasher.blockSize;
-
     if (salt === undefined) salt = new Uint8Array(outputLen);
 
     const prk = hmacSync(
-      hasher,
-      salt,
-      ikm,
-      blockLen,
-      outputLen,
+        hasher,
+        salt,
+        ikm,
+        blockLen,
+        outputLen,
     );
 
     const blocks = Math.ceil(length / outputLen);
@@ -198,13 +193,12 @@ function doHKDF(
         const counter = new Uint8Array([i + 1]);
         const msg = concatBytes(prev, info, counter);
         const T = hmacSync(
-          hasher,
-          prk,
-          msg,
-          blockLen,
-          outputLen,
+            hasher,
+            prk,
+            msg,
+            blockLen,
+            outputLen,
         );
-
         okmFull.set(T, i * outputLen);
         prev = T;
     }
@@ -298,12 +292,14 @@ function derivMult(
     outputLength = 64,
 ) {
 
+    const origSaltHex = bytesToHex(salt); // string, hex
+
     const elements = [];
     for (let i = 1; !(i > numberOfElements); i++) {
 
         const prevSaltHex = bytesToHex(salt);
 
-        HCs.blake2.update(utf8ToBytes(`${i} ${prevSaltHex} ${passw.length} ${numberOfElements} ${outputLength}`));
+        HCs.blake2.update(utf8ToBytes(`${i} ${prevSaltHex} ${origSaltHex} ${passw.length} ${numberOfElements} ${outputLength}`));
         salt = HCs.blake2.digest("binary");
         HCs.blake2.init();
 
@@ -328,41 +324,39 @@ function expandKey(
 ) {
 
     const passwHex = bytesToHex(passw);
-    const saltHex = bytesToHex(salt);
+    const origSaltHex = bytesToHex(salt);
 
-    HCs.whirlpool.update(utf8ToBytes(`${passwHex} ${saltHex} ${expandedKeyLength} ${pieceLength}`));
+    HCs.whirlpool.update(utf8ToBytes(`${passwHex} ${origSaltHex} ${expandedKeyLength} ${pieceLength}`));
     const wpInit = HCs.whirlpool.digest("binary");
     HCs.whirlpool.init();
 
-    HCs.sha3.update(utf8ToBytes(`${bytesToHex(wpInit)} ${passwHex} ${saltHex} ${expandedKeyLength} ${pieceLength}`));
+    HCs.sha3.update(utf8ToBytes(`${bytesToHex(wpInit)} ${passwHex} ${origSaltHex} ${expandedKeyLength} ${pieceLength}`));
     let expandedKey = HCs.sha3.digest("binary");
     HCs.sha3.init();
 
     const rounds = Math.ceil(expandedKeyLength / pieceLength) - 1;
-    let itSalt = salt;
     for (let i = 1; !(i > rounds); i++) {
 
-        const prevItSaltHex = bytesToHex(itSalt);
+        const prevSalt = salt;
+        const prevSaltHex = bytesToHex(prevSalt);
 
-        HCs.blake2.update(utf8ToBytes(`${i} ${prevItSaltHex} ${saltHex} ${passw.length} ${expandedKeyLength} ${pieceLength}`));
-        itSalt = HCs.blake2.digest("binary");
+        HCs.blake2.update(concatBytes(utf8ToBytes(`${i} ${prevSaltHex} ${origSaltHex} ${passw.length} ${expandedKeyLength} ${pieceLength}`), expandedKey));
+        salt = HCs.blake2.digest("binary");
         HCs.blake2.init();
-
-        const itConcat = concatBytes(expandedKey, passw);
 
         const newPiece = doHKDF(
             HCs.sha3,
-            itConcat,
-            itSalt,
-            utf8ToBytes(`${i} ${prevItSaltHex}`),
+            concatBytes(salt, passw),
+            salt,
+            utf8ToBytes(`${i} ${prevSaltHex}`),
             pieceLength,
         );
 
-        const len = Math.min(itSalt.length, salt.length);
+        const orderLength = Math.min(salt.length, prevSalt.length);
         let order = 0;
-        for (let j = 0; j < len; j++) {
-            if (itSalt[j] !== salt[j]) {
-                order = itSalt[j] - salt[j];
+        for (let j = 0; j < orderLength; j++) {
+            if (salt[j] !== prevSalt[j]) {
+                order = salt[j] - prevSalt[j];
                 break;
             }
         }
