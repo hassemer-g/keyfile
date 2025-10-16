@@ -128,7 +128,7 @@ function formatTime(
 }
 
 function clean(...arrays) {
-    for (const a of arrays) if (isUint8Array(a)) a.fill(0);
+    for (const a of arrays) if (a instanceof Uint8Array) a.fill(0);
 }
 
 function hmacSync(
