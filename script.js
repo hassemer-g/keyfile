@@ -38,6 +38,14 @@ function concatBytes(...arrs) {
     return out;
 }
 
+function compareUint8Arrays(a, b) {
+    const len = Math.min(a.length, b.length);
+    for (let i = 0; i < len; i++) {
+        if (a[i] !== b[i]) return a[i] - b[i];
+    }
+    return a.length - b.length;
+}
+
 const customBase91CharSet = "!#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_abcdefghijklmnopqrstuvwxyz{|}~";
 
 function encodeBase91(
@@ -269,7 +277,7 @@ async function doHashing(
             fn.init();
         }
 
-        const concatHashes = concatBytes(...hashArray);
+        const concatHashes = concatBytes(...(hashArray.sort(compareUint8Arrays)));
 
         HCs.whirlpool.update(concatBytes(output, concatHashes));
         const salt = HCs.whirlpool.digest("binary");
@@ -344,7 +352,7 @@ function expandKey(
         const prevSalt = salt;
         const prevSaltHex = bytesToHex(prevSalt);
 
-        HCs.blake2.update(concatBytes(utf8ToBytes(`${i} ${prevSaltHex} ${origSaltHex} ${passw.length} ${expandedKeyLength} ${pieceLength}`), expandedKey));
+        HCs.blake2.update(concatBytes(utf8ToBytes(`${i} ${prevSaltHex} ${origSaltHex} ${passw.length} ${expandedKey.length} ${expandedKeyLength} ${pieceLength}`), expandedKey.subarray(-64), expandedKey.subarray(0, 64)));
         salt = HCs.blake2.digest("binary");
         HCs.blake2.init();
 
@@ -352,18 +360,11 @@ function expandKey(
             HCs.sha3,
             concatBytes(salt, passw),
             salt,
-            utf8ToBytes(`${i} ${prevSaltHex}`),
+            utf8ToBytes(`${i} ${prevSaltHex} ${expandedKey.length}`),
             pieceLength,
         );
 
-        const orderLength = Math.min(salt.length, prevSalt.length);
-        let order = 0;
-        for (let j = 0; j < orderLength; j++) {
-            if (salt[j] !== prevSalt[j]) {
-                order = salt[j] - prevSalt[j];
-                break;
-            }
-        }
+        const order = compareUint8Arrays(salt, prevSalt);
         expandedKey = order < 0 ? concatBytes(newPiece, expandedKey) : concatBytes(expandedKey, newPiece);
     }
 
