@@ -592,4 +592,4 @@ getButton.addEventListener("click", async () => {
     }
 });
 
-valButton();
+
