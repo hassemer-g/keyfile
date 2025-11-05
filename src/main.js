@@ -1,45 +1,41 @@
-import { createSHA512, createSHA3, createBLAKE2b, createBLAKE3, createWhirlpool, argon2id } from "./hash-wasm/hash-wasm.mjs";
+import { createSHA512, createSHA3, createBLAKE2b, createBLAKE3, createWhirlpool, createXXHash128, argon2id } from "./hash-wasm/hash-wasm.mjs";
+
+function concatBytes(...arrays) {
+    if (arrays.length === 0) return new Uint8Array(0);
+
+    let totalLength = 0;
+    for (let i = 0; i < arrays.length; i++) {
+        const a = arrays[i];
+        if (!(a instanceof Uint8Array)) throw new TypeError(`concatBytes: argument ${i} is not a Uint8Array`);
+        totalLength += a.length;
+    }
+
+    const result = new Uint8Array(totalLength);
+    for (let i = 0, offset = 0; i < arrays.length; i++) {
+        const a = arrays[i];
+        result.set(a, offset);
+        offset += a.length;
+    }
+
+    return result;
+}
+
+function compareUint8arrays(a, b) {
+    const lenA = a.length;
+    const lenB = b.length;
+    const minLen = lenA < lenB ? lenA : lenB;
+
+    for (let i = 0; i < minLen; i++) {
+        const diff = a[i] - b[i];
+        if (diff !== 0) return diff;
+    }
+
+    return lenA - lenB;
+}
 
 function utf8ToBytes(str) {
     if (typeof str !== "string") throw new Error("string expected");
     return new Uint8Array(new TextEncoder().encode(str));
-}
-
-const hasHexBuiltin = (() => typeof Uint8Array.from([]).toHex === "function" && typeof Uint8Array.fromHex === "function")();
-const hexes = Array.from({ length: 256 }, (_, i) => i.toString(16).padStart(2, "0"));
-function bytesToHex(bytes) {
-    if (!(bytes instanceof Uint8Array)) throw new Error("bytesToHex expects Uint8Array input");
-
-    if (hasHexBuiltin) return bytes.toHex();
-
-    let hex = "";
-    for (let i = 0; i < bytes.length; i++) {
-        hex += hexes[bytes[i]];
-    }
-    return hex;
-}
-
-function concatBytes(...arrs) {
-    let len = 0;
-    for (const a of arrs) {
-        if (!(a instanceof Uint8Array)) throw new Error("concatBytes expects Uint8Array arguments");
-        len += a.length;
-    }
-    const out = new Uint8Array(len);
-    let off = 0;
-    for (const a of arrs) {
-        out.set(a, off);
-        off += a.length;
-    }
-    return out;
-}
-
-function compareUint8Arrays(a, b) {
-    const len = Math.min(a.length, b.length);
-    for (let i = 0; i < len; i++) {
-        if (a[i] !== b[i]) return a[i] - b[i];
-    }
-    return a.length - b.length;
 }
 
 const customBase91CharSet = "!#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_abcdefghijklmnopqrstuvwxyz{|}~";
@@ -131,22 +127,17 @@ function formatTime(
         : parts[0];
 }
 
-function clean(...arrays) {
-    for (const a of arrays) if (a instanceof Uint8Array) a.fill(0);
-}
-
-function hmacSync(
-    hasher,
-    key,
+function hmac(
+    h,
     msg,
+    key,
     blockLen,
-    outputLen,
 ) {
 
     if (key.length > blockLen) {
-        hasher.update(key);
-        key = hasher.digest("binary");
-        hasher.init();
+        h.update(key);
+        key = h.digest("binary");
+        h.init();
     }
 
     const keyPadded = new Uint8Array(blockLen);
@@ -159,60 +150,94 @@ function hmacSync(
         opad[i] = b ^ 0x5c;
     }
 
-    hasher.update(ipad);
-    hasher.update(msg);
-    const inner = hasher.digest("binary");
-    hasher.init();
+    h.update(ipad);
+    h.update(msg);
+    const inner = h.digest("binary");
+    h.init();
 
-    hasher.update(opad);
-    hasher.update(inner);
-    const out = hasher.digest("binary");
-    hasher.init();
+    h.update(opad);
+    h.update(inner);
+    const out = h.digest("binary");
+    h.init();
 
-    clean(keyPadded, ipad, opad, inner);
     return out;
 }
-
 function doHKDF(
-    hasher,
+    h,
     ikm,
-    salt = undefined,
     info = new Uint8Array(0),
-    length = 64,
+    salt = undefined,
+    length = undefined,
 ) {
 
-    const outputLen = hasher.digestSize;
-    const blockLen = hasher.blockSize;
-    if (salt === undefined) salt = new Uint8Array(outputLen);
+    const blockLen = h.blockSize;
+    const outputLen = h.digestSize;
 
-    const prk = hmacSync(
-        hasher,
-        salt,
+    if (length === undefined)
+        length = outputLen;
+
+    if (salt === undefined)
+        salt = new Uint8Array(blockLen);
+
+    const prk = hmac(
+        h,
         ikm,
+        salt,
         blockLen,
-        outputLen,
     );
 
     const blocks = Math.ceil(length / outputLen);
-    const okmFull = new Uint8Array(blocks * outputLen);
-    let prev = new Uint8Array(0);
+    const okm = new Uint8Array(blocks * outputLen);
 
-    for (let i = 0; i < blocks; i++) {
-        const counter = new Uint8Array([i + 1]);
-        const msg = concatBytes(prev, info, counter);
-        const T = hmacSync(
-            hasher,
-            prk,
-            msg,
-            blockLen,
-            outputLen,
-        );
-        okmFull.set(T, i * outputLen);
-        prev = T;
+    let prev = new Uint8Array(0);
+    let havePrev = false;
+    const counter = new Uint8Array(1);
+
+    let prkKey = prk;
+    if (prkKey.length > blockLen) {
+        h.update(prkKey);
+        prkKey = h.digest("binary");
+        h.init();
     }
 
-    clean(prev, prk);
-    return okmFull.slice(0, length);
+    const keyPadded = new Uint8Array(blockLen);
+    keyPadded.set(prkKey);
+    const ipad = new Uint8Array(blockLen);
+    const opad = new Uint8Array(blockLen);
+    for (let i = 0; i < blockLen; i++) {
+        const b = keyPadded[i];
+        ipad[i] = b ^ 0x36;
+        opad[i] = b ^ 0x5c;
+    }
+
+    h.update(ipad);
+    const innerBaseState = h.save();
+    h.init();
+
+    h.update(opad);
+    const outerBaseState = h.save();
+    h.init();
+
+    for (let i = 0; i < blocks; i++) {
+        counter[0] = i + 1;
+
+        h.load(innerBaseState);
+        if (havePrev) h.update(prev);
+        if (info.length) h.update(info);
+        h.update(counter);
+        const inner = h.digest("binary");
+        h.init();
+
+        h.load(outerBaseState);
+        h.update(inner);
+        prev = h.digest("binary");
+        if (!havePrev) havePrev = true;
+        h.init();
+
+        okm.set(prev, i * outputLen);
+    }
+
+    return okm.slice(0, length);
 }
 
 async function doArgon2id(
@@ -224,7 +249,7 @@ async function doArgon2id(
     outputLength = 64,
 ) {
 
-    const output = await argon2id({
+    return argon2id({
         password,
         salt,
         secret,
@@ -234,58 +259,49 @@ async function doArgon2id(
         hashLength: outputLength,
         outputType: "binary",
     });
-
-    return output;
 }
 
-async function doHashing(
+function doHashing(
     input,
-    HCs,
-    rounds = 1,
-    memCost = 1,
-    iterations = 1,
+    Hs,
     outputLength = 64,
+    rounds = 1,
 ) {
 
-    HCs.whirlpool.update(concatBytes(utf8ToBytes(`${input.length} ${rounds} ${memCost} ${iterations} ${outputLength}`), input));
-    const initialHash = HCs.whirlpool.digest("binary");
-    HCs.whirlpool.init();
+    Hs.whirlpool.update(concatBytes(input, utf8ToBytes(`${input.length} ${rounds} ${outputLength}`)));
+    const markInit1 = Hs.whirlpool.digest("binary");
+    Hs.whirlpool.init();
+    Hs.sha3.update(concatBytes(utf8ToBytes(`${input.length} ${rounds} ${outputLength}`), markInit1, input));
+    const markInit2 = Hs.sha3.digest("binary");
+    Hs.sha3.init();
+    let mark = concatBytes(markInit2, markInit1);
 
-    let output = doHKDF(
-        HCs.sha3,
-        concatBytes(initialHash, input),
-        initialHash,
-        utf8ToBytes(bytesToHex(initialHash)),
-    );
-
+    let output = new Uint8Array(0);
     for (let i = 1; !(i > rounds); i++) {
 
-        HCs.sha3.update(utf8ToBytes(`${i} ${bytesToHex(output)} ${input.length} ${rounds} ${memCost} ${iterations} ${outputLength}`));
-        const iterationMark = HCs.sha3.digest("binary");
-        HCs.sha3.init();
+        const prevMark = mark;
 
-        const markedInput = concatBytes(iterationMark, input);
+        Hs.sha3.update(concatBytes(utf8ToBytes(`${i} ${input.length} ${rounds} ${outputLength}`), prevMark, output));
+        mark = concatBytes(prevMark.subarray(64, 96), Hs.sha3.digest("binary"), prevMark.subarray(32, 64));
+        Hs.sha3.init();
+
+        const markedInput = concatBytes(mark, input);
 
         const hashArray = [];
-        for (const [name, fn] of Object.entries(HCs)) {
+        for (const [name, fn] of Object.entries(Hs)) {
             fn.update(markedInput);
             hashArray.push(fn.digest("binary"));
             fn.init();
         }
 
-        const concatHashes = concatBytes(...(hashArray.sort(compareUint8Arrays)));
+        const itConcat = concatBytes(...(hashArray.sort(compareUint8arrays)));
 
-        HCs.whirlpool.update(concatBytes(output, concatHashes));
-        const salt = HCs.whirlpool.digest("binary");
-        HCs.whirlpool.init();
-
-        output = await doArgon2id(
-            concatBytes(concatHashes, input),
-            salt,
-            utf8ToBytes(`${i} ${bytesToHex(concatHashes)}`),
-            memCost,
-            iterations,
-            i === rounds ? outputLength : 64,
+        output = doHKDF(
+            compareUint8arrays(mark, prevMark) < 0 ? Hs.sha2 : Hs.blake2,
+            concatBytes(itConcat, input),
+            utf8ToBytes(`${i}`),
+            mark,
+            i === rounds ? outputLength : 16320,
         );
     }
 
@@ -295,29 +311,33 @@ async function doHashing(
 function derivMult(
     passw,
     salt,
-    numberOfElements,
-    HCs,
-    outputLength = 64,
+    outputOutline,
+    Hs,
 ) {
 
-    const origSaltHex = bytesToHex(salt); // string, hex
+    const numberOfElements = outputOutline.length;
+    let outlineSum = 0;
+    for (let i = 0; i < numberOfElements; i++) outlineSum += outputOutline[i];
 
     const elements = [];
-    for (let i = 1; !(i > numberOfElements); i++) {
+    let i = 1;
+    for (const elLength of outputOutline) {
 
-        const prevSaltHex = bytesToHex(salt);
+        const prevSalt = salt;
 
-        HCs.blake2.update(utf8ToBytes(`${i} ${prevSaltHex} ${origSaltHex} ${passw.length} ${numberOfElements} ${outputLength}`));
-        salt = HCs.blake2.digest("binary");
-        HCs.blake2.init();
+        Hs.sha3.update(concatBytes(utf8ToBytes(`${i} ${passw.length} ${numberOfElements} ${outlineSum} ${elLength}`), prevSalt));
+        salt = concatBytes(prevSalt.subarray(64, 96), Hs.sha3.digest("binary"), prevSalt.subarray(32, 64));
+        Hs.sha3.init();
 
         elements.push(doHKDF(
-            HCs.sha3,
+            compareUint8arrays(salt, prevSalt) < 0 ? Hs.sha2 : Hs.blake2,
             concatBytes(salt, passw),
+            utf8ToBytes(`${i}`),
             salt,
-            utf8ToBytes(`${i} ${prevSaltHex}`),
-            outputLength,
+            elLength,
         ));
+
+        i++;
     }
 
     return elements;
@@ -327,41 +347,31 @@ function expandKey(
     passw,
     salt,
     expandedKeyLength,
-    HCs,
+    Hs,
     pieceLength = 64,
 ) {
 
-    const passwHex = bytesToHex(passw);
-    const origSaltHex = bytesToHex(salt);
-
-    HCs.whirlpool.update(utf8ToBytes(`${passwHex} ${origSaltHex} ${expandedKeyLength} ${pieceLength}`));
-    const wpInit = HCs.whirlpool.digest("binary");
-    HCs.whirlpool.init();
-
-    HCs.sha3.update(utf8ToBytes(`${bytesToHex(wpInit)} ${passwHex} ${origSaltHex} ${expandedKeyLength} ${pieceLength}`));
-    let expandedKey = HCs.sha3.digest("binary");
-    HCs.sha3.init();
-
-    const rounds = Math.ceil(expandedKeyLength / pieceLength) - 1;
+    let expandedKey = new Uint8Array(0);
+    const rounds = Math.ceil(expandedKeyLength / pieceLength);
     for (let i = 1; !(i > rounds); i++) {
 
         const prevSalt = salt;
-        const prevSaltHex = bytesToHex(prevSalt);
 
-        HCs.blake2.update(concatBytes(utf8ToBytes(`${i} ${prevSaltHex} ${origSaltHex} ${passw.length} ${expandedKey.length} ${expandedKeyLength} ${pieceLength}`), expandedKey.subarray(-64), expandedKey.subarray(0, 64)));
-        salt = HCs.blake2.digest("binary");
-        HCs.blake2.init();
+        Hs.sha3.update(concatBytes(utf8ToBytes(`${i} ${passw.length} ${expandedKey.length} ${expandedKeyLength} ${pieceLength}`), prevSalt, expandedKey.subarray(-pieceLength), expandedKey.subarray(0, pieceLength)));
+        salt = concatBytes(prevSalt.subarray(64, 96), Hs.sha3.digest("binary"), prevSalt.subarray(32, 64));
+        Hs.sha3.init();
+
+        const order = compareUint8arrays(salt, prevSalt);
 
         const newPiece = doHKDF(
-            HCs.sha3,
+            order < 0 ? Hs.sha2 : Hs.blake2,
             concatBytes(salt, passw),
+            utf8ToBytes(`${i}`),
             salt,
-            utf8ToBytes(`${i} ${prevSaltHex} ${expandedKey.length}`),
             pieceLength,
         );
 
-        const order = compareUint8Arrays(salt, prevSalt);
-        expandedKey = order < 0 ? concatBytes(newPiece, expandedKey) : concatBytes(expandedKey, newPiece);
+        expandedKey = ((order < 0 && i % 2 === 0) || (order > 0 && i % 2 === 1)) ? concatBytes(newPiece, expandedKey) : concatBytes(expandedKey, newPiece);
     }
 
     return expandedKey;
@@ -374,41 +384,40 @@ async function buildKeyfile(
     motherBirthDate,
     ownBirthDate,
     keyfileLength,
-    HCs,
+    Hs,
 ) {
 
-    const salt = await doHashing(
+    const salt = doHashing(
         utf8ToBytes(`${ownBirthDate} ${fatherBirthDate} ${motherBirthDate} ${userPIN} ${userPassw} ${keyfileLength}`),
-        HCs,
+        Hs,
+        128,
     );
 
-    const prePassw = await doHashing(
-        utf8ToBytes(`${userPIN} ${userPassw} ${ownBirthDate} ${fatherBirthDate} ${motherBirthDate} ${keyfileLength} ${bytesToHex(salt)}`),
-        HCs,
-    );
-
-    const elements = derivMult(
-        prePassw,
+    const precursors = derivMult(
+        doHashing(
+            concatBytes(utf8ToBytes(`${userPIN} ${userPassw} ${ownBirthDate} ${fatherBirthDate} ${motherBirthDate} ${keyfileLength}`), salt),
+            Hs,
+            16320,
+            100,
+        ),
         salt,
-        3,
-        HCs,
+        [16320, 16320, 16320, 128],
+        Hs,
     );
 
-    const passw = await doHashing(
-        elements[1],
-        HCs,
-        1000,
-        1024,
-    );
-
-    const keyfile = expandKey(
-        concatBytes(passw, elements[2]),
-        elements[0],
+    return expandKey(
+        await doArgon2id(
+            precursors[2],
+            precursors[0],
+            precursors[1],
+            1024,
+            1500,
+            16384,
+        ),
+        precursors[3],
         keyfileLength,
-        HCs,
+        Hs,
     );
-
-    return keyfile;
 }
 
 const userInputPIN = document.getElementById("userInputPIN");
@@ -420,12 +429,13 @@ const doButton = document.getElementById("doButton");
 const resultMessage = document.getElementById("resultMessage");
 const getButton = document.getElementById("getButton");
 
-const HCs = {
+const Hs = {
     sha2: await createSHA512(),
     sha3: await createSHA3(),
     blake2: await createBLAKE2b(),
     blake3: await createBLAKE3(),
     whirlpool: await createWhirlpool(),
+    xxhash: await createXXHash128(),
 };
 
 const keyfileLength = 1000000;
@@ -515,14 +525,18 @@ async function saveStringToFile(str, suggestedName = "download") {
         });
 
         const writable = await handle.createWritable();
+
         await writable.write(blob);
         await writable.close();
 
     } else {
+
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
+
         a.download = suggestedName;
+
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -554,7 +568,7 @@ doButton.addEventListener("click", async () => {
         userInputMotherBirthDate.value.trim(),
         userInputOwnBirthDate.value.trim(),
         keyfileLength,
-        HCs,
+        Hs,
     );
 
     const timeAfter = performance.now();
@@ -591,5 +605,3 @@ getButton.addEventListener("click", async () => {
         alert("Failed to save keyfile: " + (err && err.message ? err.message : err));
     }
 });
-
-
