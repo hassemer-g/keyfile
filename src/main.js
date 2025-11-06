@@ -38,6 +38,29 @@ function utf8ToBytes(str) {
     return new Uint8Array(new TextEncoder().encode(str));
 }
 
+function integerToBytes(input) {
+    if (typeof input !== "bigint" && typeof input !== "number") {
+        throw new Error(`Input to "integerToBytes" must be a number or big integer!`);
+    }
+    if (typeof input === "number") {
+        if (!Number.isSafeInteger(input) || input < 0) {
+            throw new Error(`Number input to "integerToBytes" must be a non-negative safe integer!`);
+        }
+        input = BigInt(input);
+    }
+    if (input < 0n) {
+        throw new Error(`Function "integerToBytes" does not support negative values!`);
+    }
+
+    const bytes = [];
+    while (input > 0n) {
+        bytes.unshift(Number(input & 0xffn));
+        input >>= 8n;
+    }
+
+    return new Uint8Array(bytes.length ? bytes : [0]);
+}
+                   
 const customBase91CharSet = "!#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_abcdefghijklmnopqrstuvwxyz{|}~";
 
 function encodeBase91(
@@ -299,7 +322,7 @@ function doHashing(
         output = doHKDF(
             compareUint8arrays(mark, prevMark) < 0 ? Hs.sha2 : Hs.blake2,
             concatBytes(itConcat, input),
-            utf8ToBytes(`${i}`),
+            integerToBytes(i),
             mark,
             i === rounds ? outputLength : 16320,
         );
@@ -332,7 +355,7 @@ function derivMult(
         elements.push(doHKDF(
             compareUint8arrays(salt, prevSalt) < 0 ? Hs.sha2 : Hs.blake2,
             concatBytes(salt, passw),
-            utf8ToBytes(`${i}`),
+            integerToBytes(i),
             salt,
             elLength,
         ));
@@ -366,7 +389,7 @@ function expandKey(
         const newPiece = doHKDF(
             order < 0 ? Hs.sha2 : Hs.blake2,
             concatBytes(salt, passw),
-            utf8ToBytes(`${i}`),
+            integerToBytes(i),
             salt,
             pieceLength,
         );
