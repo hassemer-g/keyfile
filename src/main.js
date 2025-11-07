@@ -475,11 +475,18 @@ function valPasswInput(input) {
 }
 
 function valBirthDate(input) {
-    return /^\d{2}\/\d{2}\/\d{4}$/.test(input);
+    return /^\d{2}\/\d{2}\/\d{4}$/.test(input)
+        && input.slice(0, 2) !== "00"
+        && input.slice(3, 5) !== "00"
+        && input.slice(6, 10) !== "0000";
+}
+
+function valOtherBirthDate(input) {
+    return input === "00/00/0000" || valBirthDate(input);
 }
 
 function valOwnBirthDate(input) {
-    return /^\d{2}\/\d{2}\/\d{4}$/.test(input)
+    return valBirthDate(input)
         && input !== userInputFatherBirthDate.value.trim()
         && input !== userInputMotherBirthDate.value.trim();
 }
@@ -487,8 +494,8 @@ function valOwnBirthDate(input) {
 const validators = {
     userInputPIN: valPIN,
     userInputPassw: valPasswInput,
-    userInputFatherBirthDate: valBirthDate,
-    userInputMotherBirthDate: valBirthDate,
+    userInputFatherBirthDate: valOtherBirthDate,
+    userInputMotherBirthDate: valOtherBirthDate,
     userInputOwnBirthDate: valOwnBirthDate,
 };
 
@@ -497,8 +504,8 @@ function valButton() {
     if (
         valPIN(userInputPIN.value.trim())
         && valPasswInput(userInputPassw.value.trim())
-        && valBirthDate(userInputFatherBirthDate.value.trim())
-        && valBirthDate(userInputMotherBirthDate.value.trim())
+        && valOtherBirthDate(userInputFatherBirthDate.value.trim())
+        && valOtherBirthDate(userInputMotherBirthDate.value.trim())
         && valOwnBirthDate(userInputOwnBirthDate.value.trim())
     ) {
         doButton.disabled = false;
