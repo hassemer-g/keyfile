@@ -60,7 +60,7 @@ function integerToBytes(input) {
 
     return new Uint8Array(bytes.length ? bytes : [0]);
 }
-                   
+
 const customBase91CharSet = "!#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_abcdefghijklmnopqrstuvwxyz{|}~";
 
 function encodeBase91(
@@ -462,7 +462,7 @@ const Hs = {
 };
 
 const keyfileLength = 1000000;
-let keyfileFinished = false;
+
 let keyfileString = null;
 
 function valPIN(input) {
@@ -494,14 +494,6 @@ function valOwnBirthDate(input) {
         && Number(input.slice(6, 10)) > Number(userInputMotherBirthDate.value.trim().slice(6, 10));
 }
 
-const validators = {
-    userInputPIN: valPIN,
-    userInputPassw: valPasswInput,
-    userInputFatherBirthDate: valOtherBirthDate,
-    userInputMotherBirthDate: valOtherBirthDate,
-    userInputOwnBirthDate: valOwnBirthDate,
-};
-
 function valButton() {
 
     if (
@@ -517,28 +509,42 @@ function valButton() {
         doButton.disabled = true;
         doButton.style.backgroundColor = "";
     }
-
-    if (
-        keyfileFinished
-    ) {
-        getButton.disabled = false;
-        getButton.style.backgroundColor = "green";
-    } else {
-        getButton.disabled = true;
-        getButton.style.backgroundColor = "";
-    }
 }
 
-Object.entries(validators).forEach(([id, fn]) => {
+userInputPIN.addEventListener("input", () => {
+    const isValid = valPIN(userInputPIN.value.trim());
+    userInputPIN.style.borderColor = isValid ? "green" : "red";
+    const isValid2 = valPasswInput(userInputPassw.value.trim());
+    userInputPassw.style.borderColor = isValid2 ? "green" : "red";
+    valButton();
+});
 
-    const field = document.getElementById(id);
+userInputPassw.addEventListener("input", () => {
+    const isValid = valPasswInput(userInputPassw.value.trim());
+    userInputPassw.style.borderColor = isValid ? "green" : "red";
+    valButton();
+});
 
-    field.addEventListener("input", () => {
-        const isValid = fn(field.value.trim());
-        field.style.borderColor = isValid ? "green" : "red";
-    });
+userInputFatherBirthDate.addEventListener("input", () => {
+    const isValid = valOtherBirthDate(userInputFatherBirthDate.value.trim());
+    userInputFatherBirthDate.style.borderColor = isValid ? "green" : "red";
+    const isValid2 = valOwnBirthDate(userInputOwnBirthDate.value.trim());
+    userInputOwnBirthDate.style.borderColor = isValid2 ? "green" : "red";
+    valButton();
+});
 
-    field.addEventListener("input", valButton);
+userInputMotherBirthDate.addEventListener("input", () => {
+    const isValid = valOtherBirthDate(userInputMotherBirthDate.value.trim());
+    userInputMotherBirthDate.style.borderColor = isValid ? "green" : "red";
+    const isValid2 = valOwnBirthDate(userInputOwnBirthDate.value.trim());
+    userInputOwnBirthDate.style.borderColor = isValid2 ? "green" : "red";
+    valButton();
+});
+
+userInputOwnBirthDate.addEventListener("input", () => {
+    const isValid = valOwnBirthDate(userInputOwnBirthDate.value.trim());
+    userInputOwnBirthDate.style.borderColor = isValid ? "green" : "red";
+    valButton();
 });
 
 async function saveStringToFile(str, suggestedName = "download") {
@@ -590,6 +596,7 @@ doButton.addEventListener("click", async () => {
     doButton.disabled = true;
     doButton.style.backgroundColor = "";
 
+    resultMessage.style.color = "white";
     resultMessage.textContent = `Building your keyfile...`;
 
     const timeBefore = performance.now();
@@ -611,11 +618,18 @@ doButton.addEventListener("click", async () => {
         keyfileBytes instanceof Uint8Array
         && keyfileBytes.length === keyfileLength
     ) {
+        resultMessage.style.color = "white";
         resultMessage.textContent = `Time spent building the keyfile: ${formatTime(timeSpent)}`;
         keyfileString = encodeBase91(keyfileBytes);
-        keyfileFinished = true;
+
         getButton.disabled = false;
         getButton.style.backgroundColor = "green";
+    } else {
+        resultMessage.style.color = "red";
+        resultMessage.textContent = `Failed to build keyfile.`;
+        keyfileString = null;
+        getButton.disabled = true;
+        getButton.style.backgroundColor = "";
     }
 });
 
