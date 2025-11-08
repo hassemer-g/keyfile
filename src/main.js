@@ -471,6 +471,7 @@ function valPIN(input) {
 
 function valPasswInput(input) {
     return valPassw(input, 20)
+        && valPIN(userInputPIN.value.trim())
         && !input.includes(userInputPIN.value.trim());
 }
 
@@ -487,8 +488,10 @@ function valOtherBirthDate(input) {
 
 function valOwnBirthDate(input) {
     return valBirthDate(input)
-        && input !== userInputFatherBirthDate.value.trim()
-        && input !== userInputMotherBirthDate.value.trim();
+        && valOtherBirthDate(userInputFatherBirthDate.value.trim())
+        && valOtherBirthDate(userInputMotherBirthDate.value.trim())
+        && Number(input.slice(6, 10)) > Number(userInputFatherBirthDate.value.trim().slice(6, 10))
+        && Number(input.slice(6, 10)) > Number(userInputMotherBirthDate.value.trim().slice(6, 10));
 }
 
 const validators = {
