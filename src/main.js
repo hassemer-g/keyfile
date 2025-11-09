@@ -519,36 +519,36 @@ function valButton() {
 }
 
 userInputFatherBirthDate.addEventListener("input", () => {
-    userInputFatherBirthDate.style.borderColor = valOtherBirthDate(userInputFatherBirthDate.value.trim()) ? "green" : "red";
-    userInputOwnBirthDate.style.borderColor = valOwnBirthDate(userInputOwnBirthDate.value.trim()) ? "green" : "red";
-    userInputPIN.style.borderColor = valPIN(userInputPIN.value.trim()) ? "green" : "red";
-    userInputPassw.style.borderColor = valPasswInput(userInputPassw.value.trim()) ? "green" : "red";
+    userInputFatherBirthDate.style.borderColor = !userInputFatherBirthDate.value.trim() ? "" : valOtherBirthDate(userInputFatherBirthDate.value.trim()) ? "green" : "red";
+    userInputOwnBirthDate.style.borderColor = !userInputOwnBirthDate.value.trim() ? "" : valOwnBirthDate(userInputOwnBirthDate.value.trim()) ? "green" : "red";
+    userInputPIN.style.borderColor = !userInputPIN.value.trim() ? "" : valPIN(userInputPIN.value.trim()) ? "green" : "red";
+    userInputPassw.style.borderColor = !userInputPassw.value.trim() ? "" : valPasswInput(userInputPassw.value.trim()) ? "green" : "red";
     valButton();
 });
 
 userInputMotherBirthDate.addEventListener("input", () => {
-    userInputMotherBirthDate.style.borderColor = valOtherBirthDate(userInputMotherBirthDate.value.trim()) ? "green" : "red";
-    userInputOwnBirthDate.style.borderColor = valOwnBirthDate(userInputOwnBirthDate.value.trim()) ? "green" : "red";
-    userInputPIN.style.borderColor = valPIN(userInputPIN.value.trim()) ? "green" : "red";
-    userInputPassw.style.borderColor = valPasswInput(userInputPassw.value.trim()) ? "green" : "red";
+    userInputMotherBirthDate.style.borderColor = !userInputMotherBirthDate.value.trim() ? "" : valOtherBirthDate(userInputMotherBirthDate.value.trim()) ? "green" : "red";
+    userInputOwnBirthDate.style.borderColor = !userInputOwnBirthDate.value.trim() ? "" : valOwnBirthDate(userInputOwnBirthDate.value.trim()) ? "green" : "red";
+    userInputPIN.style.borderColor = !userInputPIN.value.trim() ? "" : valPIN(userInputPIN.value.trim()) ? "green" : "red";
+    userInputPassw.style.borderColor = !userInputPassw.value.trim() ? "" : valPasswInput(userInputPassw.value.trim()) ? "green" : "red";
     valButton();
 });
 
 userInputOwnBirthDate.addEventListener("input", () => {
-    userInputOwnBirthDate.style.borderColor = valOwnBirthDate(userInputOwnBirthDate.value.trim()) ? "green" : "red";
-    userInputPIN.style.borderColor = valPIN(userInputPIN.value.trim()) ? "green" : "red";
-    userInputPassw.style.borderColor = valPasswInput(userInputPassw.value.trim()) ? "green" : "red";
+    userInputOwnBirthDate.style.borderColor = !userInputOwnBirthDate.value.trim() ? "" : valOwnBirthDate(userInputOwnBirthDate.value.trim()) ? "green" : "red";
+    userInputPIN.style.borderColor = !userInputPIN.value.trim() ? "" : valPIN(userInputPIN.value.trim()) ? "green" : "red";
+    userInputPassw.style.borderColor = !userInputPassw.value.trim() ? "" : valPasswInput(userInputPassw.value.trim()) ? "green" : "red";
     valButton();
 });
 
 userInputPIN.addEventListener("input", () => {
-    userInputPIN.style.borderColor = valPIN(userInputPIN.value.trim()) ? "green" : "red";
-    userInputPassw.style.borderColor = valPasswInput(userInputPassw.value.trim()) ? "green" : "red";
+    userInputPIN.style.borderColor = !userInputPIN.value.trim() ? "" : valPIN(userInputPIN.value.trim()) ? "green" : "red";
+    userInputPassw.style.borderColor = !userInputPassw.value.trim() ? "" : valPasswInput(userInputPassw.value.trim()) ? "green" : "red";
     valButton();
 });
 
 userInputPassw.addEventListener("input", () => {
-    userInputPassw.style.borderColor = valPasswInput(userInputPassw.value.trim()) ? "green" : "red";
+    userInputPassw.style.borderColor = !userInputPassw.value.trim() ? "" : valPasswInput(userInputPassw.value.trim()) ? "green" : "red";
     valButton();
 });
 
