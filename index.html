@@ -18,31 +18,33 @@
 
         <p class="disclaimer">Building a keyfile can take a long time, up to 30 minutes or more, depending on your device. The whole process is executed locally on your machine. <span class="highlight">Don't close the tab until the key is finished!</span> You can safely change tabs and do other things on your device while the keyfile is being built.</p>
 
+        <p class="disclaimer">In case the birth date of one of your parents is unknown, you should use "00/00/0000" as input</p>
+
         <br>
 
         <div class="form-group">
-            <label for="userInputPIN">Your PIN <span class="disclaimer">(digits only, min. length 4):</span></label>
+            <label for="userInputFatherBirthDate">Your father's birth date <span class="disclaimer">(format: DD/MM/YYYY):</span></label>
+            <input type="text" id="userInputFatherBirthDate" placeholder="E.g., 31/01/1970">
+        </div>
+
+        <div class="form-group">
+            <label for="userInputMotherBirthDate">Your mother's birth date <span class="disclaimer">(format: DD/MM/YYYY):</span></label>
+            <input type="text" id="userInputMotherBirthDate" placeholder="E.g., 02/12/1979">
+        </div>
+
+        <div class="form-group">
+            <label for="userInputOwnBirthDate">Your own birth date <span class="disclaimer">(format: DD/MM/YYYY):</span></label>
+            <input type="text" id="userInputOwnBirthDate" placeholder="E.g., 08/08/2000">
+        </div>
+
+        <div class="form-group">
+            <label for="userInputPIN">Your PIN <span class="disclaimer">(digits only, min. length 4; must <span class="highlight">not</span> contain your birth date):</span></label>
             <input type="password" id="userInputPIN" placeholder="E.g., 1234">
         </div>
 
         <div class="form-group">
             <label for="userInputPassw">Your password <span class="disclaimer">(min. length 20; must include a lowercase letter, an uppercase letter, a digit and a symbol, and must <span class="highlight">not</span> contain the PIN):</span></label>
             <input type="password" id="userInputPassw" placeholder="E.g., VERYstrong_password1">
-        </div>
-
-        <div class="form-group">
-            <label for="userInputFatherBirthDate">Your father's birth date <span class="disclaimer">(format: DD/MM/YYYY):</span></label>
-            <input type="text" id="userInputFatherBirthDate" placeholder="E.g., 01/11/1970">
-        </div>
-
-        <div class="form-group">
-            <label for="userInputMotherBirthDate">Your mother's birth date <span class="disclaimer">(format: DD/MM/YYYY):</span></label>
-            <input type="text" id="userInputMotherBirthDate" placeholder="E.g., 31/03/1979">
-        </div>
-
-        <div class="form-group">
-            <label for="userInputOwnBirthDate">Your own birth date <span class="disclaimer">(format: DD/MM/YYYY):</span></label>
-            <input type="text" id="userInputOwnBirthDate" placeholder="E.g., 08/08/2000">
         </div>
 
         <button id="doButton" disabled>Build keyfile</button>
