@@ -443,11 +443,11 @@ async function buildKeyfile(
     );
 }
 
-const userInputPIN = document.getElementById("userInputPIN");
-const userInputPassw = document.getElementById("userInputPassw");
 const userInputFatherBirthDate = document.getElementById("userInputFatherBirthDate");
 const userInputMotherBirthDate = document.getElementById("userInputMotherBirthDate");
 const userInputOwnBirthDate = document.getElementById("userInputOwnBirthDate");
+const userInputPIN = document.getElementById("userInputPIN");
+const userInputPassw = document.getElementById("userInputPassw");
 const doButton = document.getElementById("doButton");
 const resultMessage = document.getElementById("resultMessage");
 const getButton = document.getElementById("getButton");
@@ -465,16 +465,6 @@ const keyfileLength = 1000000;
 
 let keyfileString = null;
 
-function valPIN(input) {
-    return /^\d{4,}$/.test(input);
-}
-
-function valPasswInput(input) {
-    return valPassw(input, 20)
-        && valPIN(userInputPIN.value.trim())
-        && !input.includes(userInputPIN.value.trim());
-}
-
 function valBirthDate(input) {
     return /^\d{2}\/\d{2}\/\d{4}$/.test(input)
         && input.slice(0, 2) !== "00"
@@ -487,21 +477,38 @@ function valOtherBirthDate(input) {
 }
 
 function valOwnBirthDate(input) {
+    const fDate = userInputFatherBirthDate.value.trim();
+    const mDate = userInputMotherBirthDate.value.trim();
     return valBirthDate(input)
-        && valOtherBirthDate(userInputFatherBirthDate.value.trim())
-        && valOtherBirthDate(userInputMotherBirthDate.value.trim())
-        && Number(input.slice(6, 10)) > Number(userInputFatherBirthDate.value.trim().slice(6, 10))
-        && Number(input.slice(6, 10)) > Number(userInputMotherBirthDate.value.trim().slice(6, 10));
+        && valOtherBirthDate(fDate)
+        && valOtherBirthDate(mDate)
+        && Number(input.slice(6, 10)) > Number(fDate.slice(6, 10))
+        && Number(input.slice(6, 10)) > Number(mDate.slice(6, 10));
+}
+
+function valPIN(input) {
+    const date = userInputOwnBirthDate.value.trim();
+    return /^\d{4,}$/.test(input)
+        && valOwnBirthDate(date)
+        && !input.includes(date.slice(6, 10))
+        && !input.includes(date.slice(0, 2) + date.slice(3, 5));
+}
+
+function valPasswInput(input) {
+    const pin = userInputPIN.value.trim();
+    return valPassw(input, 20)
+        && valPIN(pin)
+        && !input.includes(pin);
 }
 
 function valButton() {
 
     if (
-        valPIN(userInputPIN.value.trim())
-        && valPasswInput(userInputPassw.value.trim())
-        && valOtherBirthDate(userInputFatherBirthDate.value.trim())
+        valOtherBirthDate(userInputFatherBirthDate.value.trim())
         && valOtherBirthDate(userInputMotherBirthDate.value.trim())
         && valOwnBirthDate(userInputOwnBirthDate.value.trim())
+        && valPIN(userInputPIN.value.trim())
+        && valPasswInput(userInputPassw.value.trim())
     ) {
         doButton.disabled = false;
         doButton.style.backgroundColor = "green";
@@ -511,39 +518,37 @@ function valButton() {
     }
 }
 
-userInputPIN.addEventListener("input", () => {
-    const isValid = valPIN(userInputPIN.value.trim());
-    userInputPIN.style.borderColor = isValid ? "green" : "red";
-    const isValid2 = valPasswInput(userInputPassw.value.trim());
-    userInputPassw.style.borderColor = isValid2 ? "green" : "red";
-    valButton();
-});
-
-userInputPassw.addEventListener("input", () => {
-    const isValid = valPasswInput(userInputPassw.value.trim());
-    userInputPassw.style.borderColor = isValid ? "green" : "red";
-    valButton();
-});
-
 userInputFatherBirthDate.addEventListener("input", () => {
-    const isValid = valOtherBirthDate(userInputFatherBirthDate.value.trim());
-    userInputFatherBirthDate.style.borderColor = isValid ? "green" : "red";
-    const isValid2 = valOwnBirthDate(userInputOwnBirthDate.value.trim());
-    userInputOwnBirthDate.style.borderColor = isValid2 ? "green" : "red";
+    userInputFatherBirthDate.style.borderColor = valOtherBirthDate(userInputFatherBirthDate.value.trim()) ? "green" : "red";
+    userInputOwnBirthDate.style.borderColor = valOwnBirthDate(userInputOwnBirthDate.value.trim()) ? "green" : "red";
+    userInputPIN.style.borderColor = valPIN(userInputPIN.value.trim()) ? "green" : "red";
+    userInputPassw.style.borderColor = valPasswInput(userInputPassw.value.trim()) ? "green" : "red";
     valButton();
 });
 
 userInputMotherBirthDate.addEventListener("input", () => {
-    const isValid = valOtherBirthDate(userInputMotherBirthDate.value.trim());
-    userInputMotherBirthDate.style.borderColor = isValid ? "green" : "red";
-    const isValid2 = valOwnBirthDate(userInputOwnBirthDate.value.trim());
-    userInputOwnBirthDate.style.borderColor = isValid2 ? "green" : "red";
+    userInputMotherBirthDate.style.borderColor = valOtherBirthDate(userInputMotherBirthDate.value.trim()) ? "green" : "red";
+    userInputOwnBirthDate.style.borderColor = valOwnBirthDate(userInputOwnBirthDate.value.trim()) ? "green" : "red";
+    userInputPIN.style.borderColor = valPIN(userInputPIN.value.trim()) ? "green" : "red";
+    userInputPassw.style.borderColor = valPasswInput(userInputPassw.value.trim()) ? "green" : "red";
     valButton();
 });
 
 userInputOwnBirthDate.addEventListener("input", () => {
-    const isValid = valOwnBirthDate(userInputOwnBirthDate.value.trim());
-    userInputOwnBirthDate.style.borderColor = isValid ? "green" : "red";
+    userInputOwnBirthDate.style.borderColor = valOwnBirthDate(userInputOwnBirthDate.value.trim()) ? "green" : "red";
+    userInputPIN.style.borderColor = valPIN(userInputPIN.value.trim()) ? "green" : "red";
+    userInputPassw.style.borderColor = valPasswInput(userInputPassw.value.trim()) ? "green" : "red";
+    valButton();
+});
+
+userInputPIN.addEventListener("input", () => {
+    userInputPIN.style.borderColor = valPIN(userInputPIN.value.trim()) ? "green" : "red";
+    userInputPassw.style.borderColor = valPasswInput(userInputPassw.value.trim()) ? "green" : "red";
+    valButton();
+});
+
+userInputPassw.addEventListener("input", () => {
+    userInputPassw.style.borderColor = valPasswInput(userInputPassw.value.trim()) ? "green" : "red";
     valButton();
 });
 
@@ -636,11 +641,7 @@ doButton.addEventListener("click", async () => {
 getButton.addEventListener("click", async () => {
 
     try {
-
         await saveStringToFile(keyfileString, "keyfile");
-        console.log(`
-    Keyfile successfully built and saved.
-        `);
 
     } catch (err) {
 
