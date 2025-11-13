@@ -380,21 +380,25 @@ function expandKey(
 
         const prevSalt = salt;
 
-        Hs.sha3.update(concatBytes(utf8ToBytes(`${i} ${passw.length} ${expandedKey.length} ${expandedKeyLength} ${pieceLength}`), prevSalt, expandedKey.subarray(-pieceLength), expandedKey.subarray(0, pieceLength)));
-        salt = concatBytes(prevSalt.subarray(64, 96), Hs.sha3.digest("binary"), prevSalt.subarray(32, 64));
-        Hs.sha3.init();
+        salt = doHashing(
+            concatBytes(utf8ToBytes(`${i} ${passw.length} ${expandedKey.length} ${expandedKeyLength} ${pieceLength}`), prevSalt, expandedKey.subarray(-pieceLength), expandedKey.subarray(0, pieceLength)),
+            Hs,
+            128,
+        );
 
-        const order = compareUint8arrays(salt, prevSalt);
+        const order1 = compareUint8arrays(salt, prevSalt);
 
         const newPiece = doHKDF(
-            order < 0 ? Hs.sha2 : Hs.blake2,
+            order1 < 0 ? Hs.sha2 : Hs.blake2,
             concatBytes(salt, passw),
             integerToBytes(i),
             salt,
             pieceLength,
         );
 
-        expandedKey = ((order < 0 && i % 2 === 0) || (order > 0 && i % 2 === 1)) ? concatBytes(newPiece, expandedKey) : concatBytes(expandedKey, newPiece);
+        const order2 = compareUint8arrays(salt.reverse(), prevSalt.reverse());
+        const midpoint = Math.floor(expandedKey.length / 2);
+        expandedKey = (order1 < 0 && order2 > 0) ? concatBytes(newPiece, expandedKey) : (order1 > 0 && order2 < 0) ? concatBytes(expandedKey, newPiece) : (order1 < 0 && order2 < 0) ? concatBytes(expandedKey.subarray(midpoint), newPiece, expandedKey.subarray(0, midpoint)) : concatBytes(expandedKey.subarray(0, midpoint), newPiece, expandedKey.subarray(midpoint));
     }
 
     return expandedKey;
@@ -434,7 +438,7 @@ async function buildKeyfile(
             precursors[0],
             precursors[1],
             1024,
-            1500,
+            3000,
             16384,
         ),
         precursors[3],
