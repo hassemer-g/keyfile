@@ -287,25 +287,27 @@ async function doArgon2id(
 function doHashing(
     input,
     Hs,
-    outputLength = 64,
+    outputOutline = [64],
     rounds = 1,
 ) {
 
-    Hs.whirlpool.update(concatBytes(input, utf8ToBytes(`${input.length} ${rounds} ${outputLength}`)));
+    const metadata = `${input.length} ${rounds} ${JSON.stringify(outputOutline, null, 0)}`;
+
+    Hs.whirlpool.update(concatBytes(input, utf8ToBytes(metadata)));
     const markInit1 = Hs.whirlpool.digest("binary");
     Hs.whirlpool.init();
-    Hs.sha3.update(concatBytes(utf8ToBytes(`${input.length} ${rounds} ${outputLength}`), markInit1, input));
+    Hs.sha3.update(concatBytes(utf8ToBytes(metadata), markInit1, input));
     const markInit2 = Hs.sha3.digest("binary");
     Hs.sha3.init();
     let mark = concatBytes(markInit2, markInit1);
 
-    let output = new Uint8Array(0);
+    let hashed = new Uint8Array(0);
     for (let i = 1; !(i > rounds); i++) {
 
-        const prevMark = mark;
+        const revPrevMark = mark.reverse();
 
-        Hs.sha3.update(concatBytes(utf8ToBytes(`${i} ${input.length} ${rounds} ${outputLength}`), prevMark, output));
-        mark = concatBytes(prevMark.subarray(64, 96), Hs.sha3.digest("binary"), prevMark.subarray(32, 64));
+        Hs.sha3.update(concatBytes(utf8ToBytes(`${i} ${metadata}`), revPrevMark, hashed));
+        mark = concatBytes(revPrevMark.subarray(64, 96), Hs.sha3.digest("binary"), revPrevMark.subarray(32, 64));
         Hs.sha3.init();
 
         const markedInput = concatBytes(mark, input);
@@ -319,51 +321,41 @@ function doHashing(
 
         const itConcat = concatBytes(...(hashArray.sort(compareUint8arrays)));
 
-        output = doHKDF(
-            compareUint8arrays(mark, prevMark) < 0 ? Hs.sha2 : Hs.blake2,
+        hashed = doHKDF(
+            compareUint8arrays(mark, revPrevMark) < 0 ? Hs.sha2 : Hs.blake2,
             concatBytes(itConcat, input),
             integerToBytes(i),
             mark,
-            i === rounds ? outputLength : 16320,
+            512,
         );
     }
 
-    return output;
-}
-
-function derivMult(
-    passw,
-    salt,
-    outputOutline,
-    Hs,
-) {
-
-    const numberOfElements = outputOutline.length;
-    let outlineSum = 0;
-    for (let i = 0; i < numberOfElements; i++) outlineSum += outputOutline[i];
-
-    const elements = [];
+    const outputs = [];
     let i = 1;
-    for (const elLength of outputOutline) {
+    for (const elementLength of outputOutline) {
 
-        const prevSalt = salt;
+        const revPrevMark = mark.reverse();
 
-        Hs.sha3.update(concatBytes(utf8ToBytes(`${i} ${passw.length} ${numberOfElements} ${outlineSum} ${elLength}`), prevSalt));
-        salt = concatBytes(prevSalt.subarray(64, 96), Hs.sha3.digest("binary"), prevSalt.subarray(32, 64));
+        Hs.sha3.update(concatBytes(utf8ToBytes(`${i} ${metadata} ${elementLength}`), revPrevMark, hashed));
+        mark = concatBytes(revPrevMark.subarray(64, 96), Hs.sha3.digest("binary"), revPrevMark.subarray(32, 64));
         Hs.sha3.init();
 
-        elements.push(doHKDF(
-            compareUint8arrays(salt, prevSalt) < 0 ? Hs.sha2 : Hs.blake2,
-            concatBytes(salt, passw),
+        outputs.push(doHKDF(
+            compareUint8arrays(mark, revPrevMark) < 0 ? Hs.sha2 : Hs.blake2,
+            concatBytes(mark, hashed),
             integerToBytes(i),
-            salt,
-            elLength,
+            mark,
+            elementLength,
         ));
 
         i++;
     }
 
-    return elements;
+    if (outputs.length === 1) {
+        return outputs[0];
+    } else {
+        return outputs;
+    }
 }
 
 function expandKey(
@@ -412,24 +404,17 @@ async function buildKeyfile(
     ownBirthDate,
     keyfileLength,
     Hs,
+    iterations = 3000,
+    pieceLength = 64,
+    memCost = 1024,
+    hashingRounds = 9000,
 ) {
 
-    const salt = doHashing(
-        utf8ToBytes(`${ownBirthDate} ${fatherBirthDate} ${motherBirthDate} ${userPIN} ${userPassw} ${keyfileLength}`),
+    const precursors = doHashing(
+        utf8ToBytes(`${ownBirthDate} ${fatherBirthDate} ${motherBirthDate} ${userPIN} ${userPassw} ${keyfileLength} ${pieceLength} ${iterations} ${memCost} ${hashingRounds}`),
         Hs,
-        128,
-    );
-
-    const precursors = derivMult(
-        doHashing(
-            concatBytes(utf8ToBytes(`${userPIN} ${userPassw} ${ownBirthDate} ${fatherBirthDate} ${motherBirthDate} ${keyfileLength}`), salt),
-            Hs,
-            16320,
-            100,
-        ),
-        salt,
-        [16320, 16320, 16320, 128],
-        Hs,
+        [256, 512, 1024, 128],
+        hashingRounds,
     );
 
     return expandKey(
@@ -437,13 +422,14 @@ async function buildKeyfile(
             precursors[2],
             precursors[0],
             precursors[1],
-            1024,
-            3000,
+            memCost,
+            iterations,
             16384,
         ),
         precursors[3],
         keyfileLength,
         Hs,
+        pieceLength,
     );
 }
 
@@ -520,6 +506,7 @@ function valButton() {
         doButton.disabled = true;
         doButton.style.backgroundColor = "";
     }
+
 }
 
 userInputFatherBirthDate.addEventListener("input", () => {
@@ -701,7 +688,11 @@ doButton.addEventListener("click", async () => {
 getButton.addEventListener("click", async () => {
 
     try {
+
         await saveStringToFile(keyfileString, "keyfile");
+        console.log(`
+    Keyfile successfully built and saved.
+        `);
 
     } catch (err) {
 
@@ -712,4 +703,5 @@ getButton.addEventListener("click", async () => {
 
         alert("Failed to save keyfile: " + (err && err.message ? err.message : err));
     }
+
 });
