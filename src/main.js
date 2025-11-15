@@ -291,22 +291,22 @@ function doHashing(
     rounds = 1,
 ) {
 
-    const metadata = `${input.length} ${rounds} ${JSON.stringify(outputOutline, null, 0)}`;
+    const metadata = utf8ToBytes(`${input.length} ${rounds} ${JSON.stringify(outputOutline, null, 0)}`);
 
-    Hs.whirlpool.update(concatBytes(input, utf8ToBytes(metadata)));
+    Hs.whirlpool.update(concatBytes(input, metadata));
     const markInit1 = Hs.whirlpool.digest("binary");
     Hs.whirlpool.init();
-    Hs.sha3.update(concatBytes(utf8ToBytes(metadata), markInit1, input));
+    Hs.sha3.update(concatBytes(input, metadata, markInit1).reverse());
     const markInit2 = Hs.sha3.digest("binary");
     Hs.sha3.init();
-    let mark = concatBytes(markInit2, markInit1);
+    let mark = concatBytes(markInit1, markInit2);
 
     let hashed = new Uint8Array(0);
     for (let i = 1; !(i > rounds); i++) {
 
         const revPrevMark = mark.reverse();
 
-        Hs.sha3.update(concatBytes(utf8ToBytes(`${i} ${metadata}`), revPrevMark, hashed));
+        Hs.sha3.update(concatBytes(metadata, revPrevMark, hashed));
         mark = concatBytes(revPrevMark.subarray(64, 96), Hs.sha3.digest("binary"), revPrevMark.subarray(32, 64));
         Hs.sha3.init();
 
@@ -315,7 +315,7 @@ function doHashing(
         const hashArray = [];
         for (const [name, fn] of Object.entries(Hs)) {
             fn.update(markedInput);
-            hashArray.push(fn.digest("binary"));
+            hashArray.push(fn.digest("binary").reverse());
             fn.init();
         }
 
@@ -323,7 +323,7 @@ function doHashing(
 
         hashed = doHKDF(
             compareUint8arrays(mark, revPrevMark) < 0 ? Hs.sha2 : Hs.blake2,
-            concatBytes(itConcat, input),
+            concatBytes(itConcat, hashed.reverse()),
             integerToBytes(i),
             mark,
             512,
@@ -336,13 +336,13 @@ function doHashing(
 
         const revPrevMark = mark.reverse();
 
-        Hs.sha3.update(concatBytes(utf8ToBytes(`${i} ${metadata} ${elementLength}`), revPrevMark, hashed));
+        Hs.sha3.update(concatBytes(integerToBytes(elementLength), revPrevMark, hashed));
         mark = concatBytes(revPrevMark.subarray(64, 96), Hs.sha3.digest("binary"), revPrevMark.subarray(32, 64));
         Hs.sha3.init();
 
         outputs.push(doHKDF(
             compareUint8arrays(mark, revPrevMark) < 0 ? Hs.sha2 : Hs.blake2,
-            concatBytes(mark, hashed),
+            concatBytes(hashed, mark).reverse(),
             integerToBytes(i),
             mark,
             elementLength,
@@ -370,25 +370,25 @@ function expandKey(
     const rounds = Math.ceil(expandedKeyLength / pieceLength);
     for (let i = 1; !(i > rounds); i++) {
 
-        const prevSalt = salt;
+        const revPrevSalt = salt;
 
         salt = doHashing(
-            concatBytes(utf8ToBytes(`${i} ${passw.length} ${expandedKey.length} ${expandedKeyLength} ${pieceLength}`), prevSalt, expandedKey.subarray(-pieceLength), expandedKey.subarray(0, pieceLength)),
+            concatBytes(utf8ToBytes(`${i} ${passw.length} ${expandedKey.length} ${expandedKeyLength} ${pieceLength}`), revPrevSalt, expandedKey.subarray(-pieceLength), expandedKey.subarray(0, pieceLength)),
             Hs,
             128,
         );
 
-        const order1 = compareUint8arrays(salt, prevSalt);
+        const order1 = compareUint8arrays(salt, revPrevSalt);
 
         const newPiece = doHKDF(
             order1 < 0 ? Hs.sha2 : Hs.blake2,
-            concatBytes(salt, passw),
+            concatBytes(passw, salt).reverse(),
             integerToBytes(i),
             salt,
             pieceLength,
         );
 
-        const order2 = compareUint8arrays(salt.reverse(), prevSalt.reverse());
+        const order2 = compareUint8arrays(salt.reverse(), revPrevSalt.reverse());
         const midpoint = Math.floor(expandedKey.length / 2);
         expandedKey = (order1 < 0 && order2 > 0) ? concatBytes(newPiece, expandedKey) : (order1 > 0 && order2 < 0) ? concatBytes(expandedKey, newPiece) : (order1 < 0 && order2 < 0) ? concatBytes(expandedKey.subarray(midpoint), newPiece, expandedKey.subarray(0, midpoint)) : concatBytes(expandedKey.subarray(0, midpoint), newPiece, expandedKey.subarray(midpoint));
     }
