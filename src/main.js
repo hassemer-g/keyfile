@@ -657,8 +657,7 @@ doButton.addEventListener("click", async () => {
     ) {
         resultMessage.style.color = "white";
         resultMessage.textContent = `Time spent building the keyfile: ${formatTime(timeSpent)}`;
-        keyfileString = encodeBase91(keyfileBytes);
-
+        keyfileString = `"0K"${encodeBase91(keyfileBytes)}"`;
         getButton.disabled = false;
         getButton.style.backgroundColor = "green";
     } else {
