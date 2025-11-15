@@ -288,63 +288,48 @@ function doHashing(
     input,
     Hs,
     outputOutline = [64],
-    rounds = 1,
+    rounds = 3,
 ) {
 
-    const metadata = utf8ToBytes(`${input.length} ${rounds} ${JSON.stringify(outputOutline, null, 0)}`);
-
-    Hs.whirlpool.update(concatBytes(input, metadata));
-    const markInit1 = Hs.whirlpool.digest("binary");
-    Hs.whirlpool.init();
-    Hs.sha3.update(concatBytes(input, metadata, markInit1).reverse());
-    const markInit2 = Hs.sha3.digest("binary");
-    Hs.sha3.init();
-    let mark = concatBytes(markInit1, markInit2);
-
-    let hashed = new Uint8Array(0);
+    let hashMat = new Uint8Array(0), salt, passwPt1, passwPt2;
     for (let i = 1; !(i > rounds); i++) {
 
-        const revPrevMark = mark.reverse();
-
-        Hs.sha3.update(concatBytes(metadata, revPrevMark, hashed));
-        mark = concatBytes(revPrevMark.subarray(64, 96), Hs.sha3.digest("binary"), revPrevMark.subarray(32, 64));
-        Hs.sha3.init();
-
-        const markedInput = concatBytes(mark, input);
+        const itInput = i === 1 ? concatBytes(integerToBytes(i), utf8ToBytes(`${input.length} ${rounds} ${JSON.stringify(outputOutline, null, 0)}`), input) : concatBytes(integerToBytes(i), hashMat, input);
 
         const hashArray = [];
         for (const [name, fn] of Object.entries(Hs)) {
-            fn.update(markedInput);
-            hashArray.push(fn.digest("binary").reverse());
+            fn.update(itInput);
+            hashArray.push(fn.digest("binary"));
             fn.init();
         }
 
-        const itConcat = concatBytes(...(hashArray.sort(compareUint8arrays)));
+        const order1 = compareUint8arrays(hashArray[1], hashArray[4]);
+        const order2 = compareUint8arrays(hashArray[0], hashArray[2]);
 
-        hashed = doHKDF(
-            compareUint8arrays(mark, revPrevMark) < 0 ? Hs.sha2 : Hs.blake2,
-            concatBytes(itConcat, hashed.reverse()),
-            integerToBytes(i),
-            mark,
-            512,
-        );
+        hashMat = (order1 < 0 && order2 > 0) ? concatBytes(...(hashArray.map(u => u.reverse()).sort(compareUint8arrays))) : (order1 > 0 && order2 < 0) ? concatBytes(...(hashArray.sort(compareUint8arrays))).reverse() : (order1 < 0 && order2 < 0) ? concatBytes(...(hashArray.map(u => u.reverse()).sort(compareUint8arrays))).reverse() : concatBytes(...(hashArray.sort(compareUint8arrays)));
+
+        if (i === rounds - 2) { salt = hashMat.slice(0, 128); }
+        else if (i === rounds - 1) { passwPt1 = hashMat; }
+        else if (i === rounds) { passwPt2 = hashMat; }
     }
+
+    const passw = concatBytes(passwPt2, passwPt1);
 
     const outputs = [];
     let i = 1;
     for (const elementLength of outputOutline) {
 
-        const revPrevMark = mark.reverse();
+        const revPrevSalt = salt.reverse();
 
-        Hs.sha3.update(concatBytes(integerToBytes(elementLength), revPrevMark, hashed));
-        mark = concatBytes(revPrevMark.subarray(64, 96), Hs.sha3.digest("binary"), revPrevMark.subarray(32, 64));
+        Hs.sha3.update(concatBytes(integerToBytes(elementLength), revPrevSalt));
+        salt = concatBytes(revPrevSalt.subarray(64, 96), Hs.sha3.digest("binary"), revPrevSalt.subarray(32, 64));
         Hs.sha3.init();
 
         outputs.push(doHKDF(
-            compareUint8arrays(mark, revPrevMark) < 0 ? Hs.sha2 : Hs.blake2,
-            concatBytes(hashed, mark).reverse(),
+            compareUint8arrays(salt, revPrevSalt) < 0 ? Hs.sha2 : Hs.blake2,
+            concatBytes(revPrevSalt, passw),
             integerToBytes(i),
-            mark,
+            salt,
             elementLength,
         ));
 
