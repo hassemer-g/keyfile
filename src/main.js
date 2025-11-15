@@ -360,7 +360,7 @@ function expandKey(
         salt = doHashing(
             i === 1 ? concatBytes(utf8ToBytes(`${passw.length} ${expandedKeyLength} ${pieceLength}`), integerToBytes(expandedKey.length), revPrevSalt) : concatBytes(integerToBytes(expandedKey.length), revPrevSalt, expandedKey.subarray(-pieceLength), expandedKey.subarray(0, pieceLength)),
             Hs,
-            128,
+            [128],
         );
 
         const order1 = compareUint8arrays(salt, revPrevSalt);
