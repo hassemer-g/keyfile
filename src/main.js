@@ -366,6 +366,8 @@ function expandKey(
     pieceLength = 64,
 ) {
 
+    const metadata = utf8ToBytes(`${passw.length} ${expandedKeyLength} ${pieceLength}`);
+
     let expandedKey = new Uint8Array(0);
     const rounds = Math.ceil(expandedKeyLength / pieceLength);
     for (let i = 1; !(i > rounds); i++) {
@@ -373,7 +375,7 @@ function expandKey(
         const revPrevSalt = salt;
 
         salt = doHashing(
-            concatBytes(utf8ToBytes(`${i} ${passw.length} ${expandedKey.length} ${expandedKeyLength} ${pieceLength}`), revPrevSalt, expandedKey.subarray(-pieceLength), expandedKey.subarray(0, pieceLength)),
+            concatBytes(metadata, integerToBytes(expandedKey.length), revPrevSalt, expandedKey.subarray(-pieceLength), expandedKey.subarray(0, pieceLength)),
             Hs,
             128,
         );
