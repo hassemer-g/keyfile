@@ -366,8 +366,6 @@ function expandKey(
     pieceLength = 64,
 ) {
 
-    const metadata = utf8ToBytes(`${passw.length} ${expandedKeyLength} ${pieceLength}`);
-
     let expandedKey = new Uint8Array(0);
     const rounds = Math.ceil(expandedKeyLength / pieceLength);
     for (let i = 1; !(i > rounds); i++) {
@@ -375,7 +373,7 @@ function expandKey(
         const revPrevSalt = salt;
 
         salt = doHashing(
-            concatBytes(metadata, integerToBytes(expandedKey.length), revPrevSalt, expandedKey.subarray(-pieceLength), expandedKey.subarray(0, pieceLength)),
+            i === 1 ? concatBytes(utf8ToBytes(`${passw.length} ${expandedKeyLength} ${pieceLength}`), integerToBytes(expandedKey.length), revPrevSalt) : concatBytes(integerToBytes(expandedKey.length), revPrevSalt, expandedKey.subarray(-pieceLength), expandedKey.subarray(0, pieceLength)),
             Hs,
             128,
         );
@@ -384,7 +382,7 @@ function expandKey(
 
         const newPiece = doHKDF(
             order1 < 0 ? Hs.sha2 : Hs.blake2,
-            concatBytes(passw, salt).reverse(),
+            concatBytes(salt.slice().reverse(), passw),
             integerToBytes(i),
             salt,
             pieceLength,
