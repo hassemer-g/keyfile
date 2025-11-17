@@ -1,4 +1,4 @@
-import { createSHA512, createSHA3, createBLAKE2b, createBLAKE3, createWhirlpool, createXXHash128, argon2id } from "./hash-wasm/hash-wasm.mjs";
+import { createSHA512, createSHA3, createWhirlpool, createBLAKE2b, createBLAKE3, argon2id } from "./hash-wasm/hash-wasm.mjs";
 
 function concatBytes(...arrays) {
     if (arrays.length === 0) return new Uint8Array(0);
@@ -288,47 +288,44 @@ function doHashing(
     input,
     Hs,
     outputOutline = [64],
-    rounds = 3,
+    rounds = 5,
 ) {
 
-    let hashMat = new Uint8Array(0), salt, passwPt1, passwPt2;
+    let hashMat, salt, passwPt1, passwPt2, passwPt3;
     for (let i = 1; !(i > rounds); i++) {
 
-        const itInput = i === 1 ? concatBytes(integerToBytes(i), utf8ToBytes(`${input.length} ${rounds} ${JSON.stringify(outputOutline, null, 0)}`), input) : concatBytes(integerToBytes(i), hashMat, input);
+        const itInput = concatBytes(i === 1 ? (integerToBytes(i), utf8ToBytes(`${input.length} ${rounds} ${JSON.stringify(outputOutline, null, 0)}`), input) : (integerToBytes(i), hashMat));
 
         const hashArray = [];
-        for (const [name, fn] of Object.entries(Hs)) {
-            fn.update(itInput);
+        for (const [j, [, fn]] of Object.entries(Hs).entries()) {
+            fn.update(concatBytes(integerToBytes(j), itInput));
             hashArray.push(fn.digest("binary"));
             fn.init();
         }
 
-        const order1 = compareUint8arrays(hashArray[1], hashArray[4]);
-        const order2 = compareUint8arrays(hashArray[0], hashArray[2]);
+        const order1 = compareUint8arrays(hashArray[1], hashArray[2]);
+        const order2 = compareUint8arrays(hashArray[0], hashArray[3]);
 
         hashMat = (order1 < 0 && order2 > 0) ? concatBytes(...(hashArray.map(u => u.reverse()).sort(compareUint8arrays))) : (order1 > 0 && order2 < 0) ? concatBytes(...(hashArray.sort(compareUint8arrays))).reverse() : (order1 < 0 && order2 < 0) ? concatBytes(...(hashArray.map(u => u.reverse()).sort(compareUint8arrays))).reverse() : concatBytes(...(hashArray.sort(compareUint8arrays)));
 
-        if (i === rounds - 2) { salt = hashMat.slice(0, 128); }
-        else if (i === rounds - 1) { passwPt1 = hashMat; }
-        else if (i === rounds) { passwPt2 = hashMat; }
+        if (i === rounds - 3) { salt = hashMat.slice(200, 264); }
+        else if (i === rounds - 2) { passwPt1 = hashMat; }
+        else if (i === rounds - 1) { passwPt2 = hashMat; }
+        else if (i === rounds) { passwPt3 = hashMat; }
     }
 
-    const passw = concatBytes(passwPt2, passwPt1);
+    const passw = concatBytes(passwPt3, passwPt2, passwPt1);
 
     const outputs = [];
     let i = 1;
     for (const elementLength of outputOutline) {
 
-        const revPrevSalt = salt.reverse();
-
-        Hs.sha3.update(concatBytes(integerToBytes(elementLength), revPrevSalt));
-        salt = concatBytes(revPrevSalt.subarray(64, 96), Hs.sha3.digest("binary"), revPrevSalt.subarray(32, 64));
-        Hs.sha3.init();
+        const iBytes = integerToBytes(i);
 
         outputs.push(doHKDF(
-            compareUint8arrays(salt, revPrevSalt) < 0 ? Hs.sha2 : Hs.blake2,
-            concatBytes(revPrevSalt, passw),
-            integerToBytes(i),
+            Hs.sha3,
+            concatBytes(iBytes, integerToBytes(elementLength), passw),
+            iBytes,
             salt,
             elementLength,
         ));
@@ -344,38 +341,65 @@ function doHashing(
 }
 
 function expandKey(
-    passw,
-    salt,
+    input,
     expandedKeyLength,
     Hs,
+    doHashingRounds = 5,
     pieceLength = 64,
 ) {
 
-    let expandedKey = new Uint8Array(0);
+    let expandedKey, hashedPrevNewPiece;
     const rounds = Math.ceil(expandedKeyLength / pieceLength);
     for (let i = 1; !(i > rounds); i++) {
 
-        const revPrevSalt = salt;
+        const iBytes = integerToBytes(i);
 
-        salt = doHashing(
-            i === 1 ? concatBytes(utf8ToBytes(`${passw.length} ${expandedKeyLength} ${pieceLength}`), integerToBytes(expandedKey.length), revPrevSalt) : concatBytes(integerToBytes(expandedKey.length), revPrevSalt, expandedKey.subarray(-pieceLength), expandedKey.subarray(0, pieceLength)),
-            Hs,
-            [128],
-        );
+        if (i === 1) {
 
-        const order1 = compareUint8arrays(salt, revPrevSalt);
+            const newPiece = doHashing(
+                concatBytes(iBytes, utf8ToBytes(`${input.length} ${expandedKeyLength} ${rounds} ${doHashingRounds} ${pieceLength}`), input),
+                Hs,
+                [pieceLength],
+                doHashingRounds,
+            );
 
-        const newPiece = doHKDF(
-            order1 < 0 ? Hs.sha2 : Hs.blake2,
-            concatBytes(salt.slice().reverse(), passw),
-            integerToBytes(i),
-            salt,
-            pieceLength,
-        );
+            expandedKey = newPiece;
 
-        const order2 = compareUint8arrays(salt.reverse(), revPrevSalt.reverse());
-        const midpoint = Math.floor(expandedKey.length / 2);
-        expandedKey = (order1 < 0 && order2 > 0) ? concatBytes(newPiece, expandedKey) : (order1 > 0 && order2 < 0) ? concatBytes(expandedKey, newPiece) : (order1 < 0 && order2 < 0) ? concatBytes(expandedKey.subarray(midpoint), newPiece, expandedKey.subarray(0, midpoint)) : concatBytes(expandedKey.subarray(0, midpoint), newPiece, expandedKey.subarray(midpoint));
+            Hs.sha3.update(concatBytes(iBytes, newPiece, input).reverse());
+            hashedPrevNewPiece = Hs.sha3.digest("binary");
+            Hs.sha3.init();
+
+        } else {
+
+            const currLength = expandedKey.length;
+            const midpoint = Math.floor(currLength / 2);
+
+            const newPiece = doHashing(
+                i < 5 ? concatBytes(iBytes, integerToBytes(currLength), expandedKey, hashedPrevNewPiece, input).reverse() : concatBytes(iBytes, integerToBytes(currLength), expandedKey.subarray(-pieceLength), expandedKey.subarray(0, pieceLength), expandedKey.subarray(midpoint, midpoint + pieceLength), expandedKey.subarray(midpoint - pieceLength, midpoint), hashedPrevNewPiece),
+                Hs,
+                [pieceLength],
+                doHashingRounds,
+            );
+
+            if (i % 3 === 1) {
+                Hs.sha3.update(concatBytes(iBytes, newPiece.subarray(0, 1), hashedPrevNewPiece));
+                hashedPrevNewPiece = Hs.sha3.digest("binary");
+                Hs.sha3.init();
+            } else if (i % 3 === 2) {
+                Hs.whirlpool.update(concatBytes(iBytes, newPiece.subarray(0, 1), hashedPrevNewPiece));
+                hashedPrevNewPiece = Hs.whirlpool.digest("binary");
+                Hs.whirlpool.init();
+            } else {
+                Hs.sha2.update(concatBytes(iBytes, newPiece.subarray(0, 1), hashedPrevNewPiece));
+                hashedPrevNewPiece = Hs.sha2.digest("binary");
+                Hs.sha2.init();
+            }
+
+            const order1 = compareUint8arrays(hashedPrevNewPiece.subarray(0, 32), hashedPrevNewPiece.subarray(32));
+            const order2 = compareUint8arrays(hashedPrevNewPiece.subarray(0, 32).reverse(), hashedPrevNewPiece.subarray(32).reverse());
+
+            expandedKey = concatBytes((order1 < 0 && order2 > 0) ? (newPiece, expandedKey) : (order1 > 0 && order2 < 0) ? (expandedKey, newPiece) : (order1 < 0 && order2 < 0) ? (expandedKey.subarray(midpoint), newPiece, expandedKey.subarray(0, midpoint)) : (expandedKey.subarray(0, midpoint), newPiece, expandedKey.subarray(midpoint)));
+        }
     }
 
     return expandedKey;
@@ -392,28 +416,30 @@ async function buildKeyfile(
     iterations = 3000,
     pieceLength = 64,
     memCost = 1024,
-    hashingRounds = 90000,
+    hashingRounds = 100000,
+    hashingRoundsForExpansion = 10,
 ) {
 
     const precursors = doHashing(
-        utf8ToBytes(`${ownBirthDate} ${fatherBirthDate} ${motherBirthDate} ${userPIN} ${userPassw} ${keyfileLength} ${pieceLength} ${iterations} ${memCost} ${hashingRounds}`),
+        utf8ToBytes(`ჰK0 ${ownBirthDate} ${fatherBirthDate} ${motherBirthDate} ${userPIN} ${userPassw} ${keyfileLength} ${pieceLength} ${iterations} ${memCost} ${hashingRounds} ${hashingRoundsForExpansion}`),
         Hs,
-        [256, 512, 1024, 128],
+        [256, 256, 256, 448],
         hashingRounds,
     );
 
+    const argon2Output = await doArgon2id(
+        precursors[2],
+        precursors[0],
+        precursors[1],
+        memCost,
+        iterations,
+    );
+
     return expandKey(
-        await doArgon2id(
-            precursors[2],
-            precursors[0],
-            precursors[1],
-            memCost,
-            iterations,
-            16384,
-        ),
-        precursors[3],
+        concatBytes(argon2Output, precursors[3]),
         keyfileLength,
         Hs,
+        hashingRoundsForExpansion,
         pieceLength,
     );
 }
@@ -430,10 +456,10 @@ const getButton = document.getElementById("getButton");
 const Hs = {
     sha2: await createSHA512(),
     sha3: await createSHA3(),
+    whirlpool: await createWhirlpool(),
     blake2: await createBLAKE2b(),
     blake3: await createBLAKE3(),
-    whirlpool: await createWhirlpool(),
-    xxhash: await createXXHash128(),
+
 };
 
 const keyfileLength = 1000000;
@@ -658,6 +684,7 @@ doButton.addEventListener("click", async () => {
         resultMessage.style.color = "white";
         resultMessage.textContent = `Time spent building the keyfile: ${formatTime(timeSpent)}`;
         keyfileString = `"0K"${encodeBase91(keyfileBytes)}"`;
+
         getButton.disabled = false;
         getButton.style.backgroundColor = "green";
     } else {
