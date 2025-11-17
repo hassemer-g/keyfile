@@ -308,7 +308,7 @@ function doHashing(
 
         hashMat = (order1 < 0 && order2 > 0) ? concatBytes(...(hashArray.map(u => u.reverse()).sort(compareUint8arrays))) : (order1 > 0 && order2 < 0) ? concatBytes(...(hashArray.sort(compareUint8arrays))).reverse() : (order1 < 0 && order2 < 0) ? concatBytes(...(hashArray.map(u => u.reverse()).sort(compareUint8arrays))).reverse() : concatBytes(...(hashArray.sort(compareUint8arrays)));
 
-        if (i === rounds - 3) { salt = hashMat.slice(200, 264); }
+        if (i === rounds - 3) { salt = hashMat.slice(100, 172); }
         else if (i === rounds - 2) { passwPt1 = hashMat; }
         else if (i === rounds - 1) { passwPt2 = hashMat; }
         else if (i === rounds) { passwPt3 = hashMat; }
