@@ -294,7 +294,7 @@ function doHashing(
     let hashMat, salt, passwPt1, passwPt2, passwPt3;
     for (let i = 1; !(i > rounds); i++) {
 
-        const itInput = concatBytes(i === 1 ? (integerToBytes(i), utf8ToBytes(`${input.length} ${rounds} ${JSON.stringify(outputOutline, null, 0)}`), input) : (integerToBytes(i), hashMat));
+        const itInput = i === 1 ? concatBytes(integerToBytes(i), utf8ToBytes(`${input.length} ${rounds} ${JSON.stringify(outputOutline, null, 0)}`), input) : concatBytes(integerToBytes(i), hashMat);
 
         const hashArray = [];
         for (const [j, [, fn]] of Object.entries(Hs).entries()) {
@@ -398,7 +398,7 @@ function expandKey(
             const order1 = compareUint8arrays(hashedPrevNewPiece.subarray(0, 32), hashedPrevNewPiece.subarray(32));
             const order2 = compareUint8arrays(hashedPrevNewPiece.subarray(0, 32).reverse(), hashedPrevNewPiece.subarray(32).reverse());
 
-            expandedKey = concatBytes((order1 < 0 && order2 > 0) ? (newPiece, expandedKey) : (order1 > 0 && order2 < 0) ? (expandedKey, newPiece) : (order1 < 0 && order2 < 0) ? (expandedKey.subarray(midpoint), newPiece, expandedKey.subarray(0, midpoint)) : (expandedKey.subarray(0, midpoint), newPiece, expandedKey.subarray(midpoint)));
+            expandedKey = (order1 < 0 && order2 > 0) ? concatBytes(newPiece, expandedKey) : (order1 > 0 && order2 < 0) ? concatBytes(expandedKey, newPiece) : (order1 < 0 && order2 < 0) ? concatBytes(expandedKey.subarray(midpoint), newPiece, expandedKey.subarray(0, midpoint)) : concatBytes(expandedKey.subarray(0, midpoint), newPiece, expandedKey.subarray(midpoint));
         }
     }
 
