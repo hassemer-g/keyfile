@@ -384,7 +384,8 @@ function expandKey(
             const midpoint = Math.floor(currLength / 2);
 
             const newPiece = doHashing(
-                i < 5 ? concatBytes(iBytes, integerToBytes(currLength), expandedKey, hashedPrevNewPiece, input).reverse() : concatBytes(iBytes, integerToBytes(currLength), expandedKey.subarray(-pieceLength), expandedKey.subarray(0, pieceLength), expandedKey.subarray(midpoint, midpoint + pieceLength), expandedKey.subarray(midpoint - pieceLength, midpoint), hashedPrevNewPiece),
+                i < 5 ? concatBytes(iBytes, integerToBytes(currLength), expandedKey, hashedPrevNewPiece, input)
+                    : concatBytes(iBytes, integerToBytes(currLength), expandedKey.subarray(-pieceLength), expandedKey.subarray(0, pieceLength), expandedKey.subarray(midpoint, midpoint + pieceLength), expandedKey.subarray(midpoint - pieceLength, midpoint), hashedPrevNewPiece),
                 Hs,
                 [pieceLength],
                 doHashingRounds,
