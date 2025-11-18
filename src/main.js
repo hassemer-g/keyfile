@@ -425,8 +425,8 @@ async function buildKeyfile(
     iterations = 3000,
     pieceLength = 64,
     memCost = 1024,
-    hashingRounds = 200000,
-    hashingRoundsForExpansion = 10,
+    hashingRounds = 300000,
+    hashingRoundsForExpansion = 5,
 ) {
 
     const precursors = doHashing(
