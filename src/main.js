@@ -305,8 +305,17 @@ function doHashing(
 
         const order1 = compareUint8arrays(hashArray[1], hashArray[2]);
         const order2 = compareUint8arrays(hashArray[0], hashArray[3]);
+        const order3 = compareUint8arrays(hashArray[4], hashArray[5]);
 
-        hashMat = (order1 < 0 && order2 > 0) ? concatBytes(...(hashArray.map(u => u.reverse()).sort(compareUint8arrays))) : (order1 > 0 && order2 < 0) ? concatBytes(...(hashArray.sort(compareUint8arrays))).reverse() : (order1 < 0 && order2 < 0) ? concatBytes(...(hashArray.map(u => u.reverse()).sort(compareUint8arrays))).reverse() : concatBytes(...(hashArray.sort(compareUint8arrays)));
+        hashMat =
+            (order1 < 0 && order2 > 0 && order3 > 0) ? concatBytes(...(hashArray.map(u => u.reverse()).sort(compareUint8arrays)))
+            : (order1 > 0 && order2 < 0 && order3 > 0) ? concatBytes(...(hashArray.sort(compareUint8arrays))).reverse()
+            : (order1 < 0 && order2 < 0 && order3 > 0) ? concatBytes(...(hashArray.map(u => u.reverse()).sort(compareUint8arrays))).reverse()
+            : (order1 > 0 && order2 > 0 && order3 > 0) ? concatBytes(...(hashArray.sort(compareUint8arrays)))
+            : (order1 < 0 && order2 > 0 && order3 < 0) ? concatBytes(...(hashArray.map(u => u.reverse()).sort(compareUint8arrays).reverse()))
+            : (order1 > 0 && order2 < 0 && order3 < 0) ? concatBytes(...(hashArray.sort(compareUint8arrays).reverse())).reverse()
+            : (order1 < 0 && order2 < 0 && order3 < 0) ? concatBytes(...(hashArray.map(u => u.reverse()).sort(compareUint8arrays).reverse())).reverse()
+            : concatBytes(...(hashArray.sort(compareUint8arrays).reverse()));
 
         if (i === rounds - 3) { salt = hashMat.slice(100, 172); }
         else if (i === rounds - 2) { passwPt1 = hashMat; }
