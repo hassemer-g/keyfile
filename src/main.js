@@ -425,7 +425,7 @@ async function buildKeyfile(
     iterations = 3000,
     pieceLength = 64,
     memCost = 1024,
-    hashingRounds = 100000,
+    hashingRounds = 200000,
     hashingRoundsForExpansion = 10,
 ) {
 
