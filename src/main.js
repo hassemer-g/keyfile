@@ -1,4 +1,4 @@
-import { createSHA512, createSHA3, createWhirlpool, createBLAKE2b, createBLAKE3, argon2id } from "./hash-wasm/hash-wasm.mjs";
+import { createSHA512, createSHA3, createWhirlpool, createBLAKE2b, createBLAKE3, createSM3, argon2id } from "./hash-wasm/hash-wasm.mjs";
 
 function concatBytes(...arrays) {
     if (arrays.length === 0) return new Uint8Array(0);
@@ -459,7 +459,7 @@ const Hs = {
     whirlpool: await createWhirlpool(),
     blake2: await createBLAKE2b(),
     blake3: await createBLAKE3(),
-
+    sm3: await createSM3(),
 };
 
 const keyfileLength = 1000000;
