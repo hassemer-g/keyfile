@@ -14,11 +14,11 @@
 
     <h1>Hassemer's Keyfile Builder</h1>
 
-        <p class="subtitle">This tool allows you to build a 1,000,000-byte keyfile from a series of inputs, including a PIN, a password and the birth dates of your parents, in a <span style="text-decoration: underline;">deterministic manner</span></p>
+        <p class="subtitle">This tool allows you to build a 1,000,000-byte keyfile based on a password and the birth dates of you and your parents, in a <span style="text-decoration: underline;">deterministic manner</span></p>
 
         <p class="disclaimer">Building a keyfile can take a long time, up to an hour or more, depending on your device. The whole process is executed locally on your machine. <span class="highlight">Don't close the tab until the key is finished!</span> You can safely change tabs and do other things on your device while the keyfile is being built.</p>
 
-        <p class="disclaimer">In case the birth date of any of your parents is unknown to you, you should use "00/00/0000" as input</p>
+        <p class="disclaimer">In case the birth date of any of your parents is unknown to you, you can use "00/00/0000" as input; just be aware that doing so reduces the security of your keyfile</p>
 
         <br>
 
@@ -38,12 +38,7 @@
         </div>
 
         <div class="form-group">
-            <label for="userInputPIN">Your PIN <span class="disclaimer">(digits only, min. length 4; must <span class="highlight">not</span> contain your birth date):</span></label>
-            <input type="password" id="userInputPIN" placeholder="E.g., 1234">
-        </div>
-
-        <div class="form-group">
-            <label for="userInputPassw">Your password <span class="disclaimer">(min. length 20; must include a lowercase letter, an uppercase letter, a digit and a symbol, and must <span class="highlight">not</span> contain the PIN):</span></label>
+            <label for="userInputPassw">Your password <span class="disclaimer">(min. length 20; must include a lowercase letter, an uppercase letter, a digit and a symbol, and must <span class="highlight">not</span> contain your birth date):</span></label>
             <input type="password" id="userInputPassw" placeholder="E.g., VERYstrong_password1">
         </div>
 
@@ -57,7 +52,7 @@
 
         <br><br>
 
-        <p class="disclaimer">Official release date: 18/11/2025</p>
+        <p class="disclaimer">Official release date: 23/11/2025</p>
 
         <p class="disclaimer"><b>Disclaimer:</b> This tool is provided "as-is", absolutely without guarantees. <span class="highlight">Use it at your own risk.</span> Please be careful 🙏🏻</p>
 
