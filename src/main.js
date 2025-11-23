@@ -33,6 +33,12 @@ function compareUint8arrays(a, b) {
     return lenA - lenB;
 }
 
+function wipeUint8() {
+    for (let i = 0; i < arguments.length; i++) {
+        arguments[i].fill(0);
+    }
+}
+
 function utf8ToBytes(str) {
     if (typeof str !== "string") throw new Error("string expected");
     return new Uint8Array(new TextEncoder().encode(str));
@@ -416,40 +422,38 @@ function expandKey(
 }
 
 async function buildKeyfile(
-    userPIN,
-    userPassw,
-    fatherBirthDate,
-    motherBirthDate,
-    ownBirthDate,
+    keyMat,
     keyfileLength,
+    argonIts,
+    argonMemCost,
+    dhRounds,
+    dhRoundsForExp,
+    pieceLength,
     Hs,
-    iterations = 3000,
-    pieceLength = 64,
-    memCost = 1024,
-    hashingRounds = 300000,
-    hashingRoundsForExpansion = 5,
 ) {
 
     const precursors = doHashing(
-        utf8ToBytes(`ჰK0 ${ownBirthDate} ${fatherBirthDate} ${motherBirthDate} ${userPIN} ${userPassw} ${keyfileLength} ${pieceLength} ${iterations} ${memCost} ${hashingRounds} ${hashingRoundsForExpansion}`),
+        keyMat,
         Hs,
         [256, 256, 256, 448],
-        hashingRounds,
+        dhRounds,
     );
-
-    const argon2Output = await doArgon2id(
-        precursors[2],
-        precursors[0],
-        precursors[1],
-        memCost,
-        iterations,
-    );
+    wipeUint8(keyMat);
 
     return expandKey(
-        concatBytes(argon2Output, precursors[3]),
+        concatBytes(
+            await doArgon2id(
+                precursors[2],
+                precursors[0],
+                precursors[1],
+                argonMemCost,
+                argonIts,
+            ),
+            precursors[3],
+        ),
         keyfileLength,
         Hs,
-        hashingRoundsForExpansion,
+        dhRoundsForExp,
         pieceLength,
     );
 }
@@ -457,7 +461,7 @@ async function buildKeyfile(
 const userInputFatherBirthDate = document.getElementById("userInputFatherBirthDate");
 const userInputMotherBirthDate = document.getElementById("userInputMotherBirthDate");
 const userInputOwnBirthDate = document.getElementById("userInputOwnBirthDate");
-const userInputPIN = document.getElementById("userInputPIN");
+
 const userInputPassw = document.getElementById("userInputPassw");
 const doButton = document.getElementById("doButton");
 const resultMessage = document.getElementById("resultMessage");
@@ -472,9 +476,7 @@ const Hs = {
     sm3: await createSM3(),
 };
 
-const keyfileLength = 1000000;
-
-let keyfileString = null;
+let KEYFILE_STRING = null;
 
 function valBirthDate(input) {
     return /^\d{2}\/\d{2}\/\d{4}$/.test(input)
@@ -497,19 +499,13 @@ function valOwnBirthDate(input) {
         && Number(input.slice(6, 10)) > Number(mDate.slice(6, 10));
 }
 
-function valPIN(input) {
-    const date = userInputOwnBirthDate.value.trim();
-    return /^\d{4,}$/.test(input)
-        && valOwnBirthDate(date)
-        && !input.includes(date.slice(6, 10))
-        && !input.includes(date.slice(0, 2) + date.slice(3, 5));
-}
-
 function valPasswInput(input) {
-    const pin = userInputPIN.value.trim();
+    const date = userInputOwnBirthDate.value.trim();
     return valPassw(input, 20)
-        && valPIN(pin)
-        && !input.includes(pin);
+
+        && valOwnBirthDate(date)
+        && !input.includes(date.slice(0, 2) + date.slice(3, 5))
+        && !input.includes(date.slice(6, 10));
 }
 
 function valButton() {
@@ -518,7 +514,7 @@ function valButton() {
         valOtherBirthDate(userInputFatherBirthDate.value.trim())
         && valOtherBirthDate(userInputMotherBirthDate.value.trim())
         && valOwnBirthDate(userInputOwnBirthDate.value.trim())
-        && valPIN(userInputPIN.value.trim())
+
         && valPasswInput(userInputPassw.value.trim())
     ) {
         doButton.disabled = false;
@@ -541,14 +537,10 @@ userInputFatherBirthDate.addEventListener("input", () => {
         (!ownD || !valOtherBirthDate(fDate) || !valOtherBirthDate(userInputMotherBirthDate.value.trim())) ? ""
         : valOwnBirthDate(ownD) ? "green"
         : "red";
-    const pin = userInputPIN.value.trim();
-    userInputPIN.style.borderColor =
-        (!pin || !valOwnBirthDate(ownD)) ? ""
-        : valPIN(pin) ? "green"
-        : "red";
+
     const passw = userInputPassw.value.trim();
     userInputPassw.style.borderColor =
-        (!passw || !valPIN(pin)) ? ""
+        (!passw || !valOwnBirthDate(ownD)) ? ""
         : valPasswInput(passw) ? "green"
         : "red";
     valButton();
@@ -565,14 +557,10 @@ userInputMotherBirthDate.addEventListener("input", () => {
         (!ownD || !valOtherBirthDate(userInputFatherBirthDate.value.trim()) || !valOtherBirthDate(mDate)) ? ""
         : valOwnBirthDate(ownD) ? "green"
         : "red";
-    const pin = userInputPIN.value.trim();
-    userInputPIN.style.borderColor =
-        (!pin || !valOwnBirthDate(ownD)) ? ""
-        : valPIN(pin) ? "green"
-        : "red";
+
     const passw = userInputPassw.value.trim();
     userInputPassw.style.borderColor =
-        (!passw || !valPIN(pin)) ? ""
+        (!passw || !valOwnBirthDate(ownD)) ? ""
         : valPasswInput(passw) ? "green"
         : "red";
     valButton();
@@ -584,28 +572,10 @@ userInputOwnBirthDate.addEventListener("input", () => {
         (!ownD || !valOtherBirthDate(userInputFatherBirthDate.value.trim()) || !valOtherBirthDate(userInputMotherBirthDate.value.trim())) ? ""
         : valOwnBirthDate(ownD) ? "green"
         : "red";
-    const pin = userInputPIN.value.trim();
-    userInputPIN.style.borderColor =
-        (!pin || !valOwnBirthDate(ownD)) ? ""
-        : valPIN(pin) ? "green"
-        : "red";
-    const passw = userInputPassw.value.trim();
-    userInputPassw.style.borderColor =
-        (!passw || !valPIN(pin)) ? ""
-        : valPasswInput(passw) ? "green"
-        : "red";
-    valButton();
-});
 
-userInputPIN.addEventListener("input", () => {
-    const pin = userInputPIN.value.trim();
-    userInputPIN.style.borderColor =
-        (!pin || !valOwnBirthDate(userInputOwnBirthDate.value.trim())) ? ""
-        : valPIN(pin) ? "green"
-        : "red";
     const passw = userInputPassw.value.trim();
     userInputPassw.style.borderColor =
-        (!passw || !valPIN(pin)) ? ""
+        (!passw || !valOwnBirthDate(ownD)) ? ""
         : valPasswInput(passw) ? "green"
         : "red";
     valButton();
@@ -614,7 +584,7 @@ userInputPIN.addEventListener("input", () => {
 userInputPassw.addEventListener("input", () => {
     const passw = userInputPassw.value.trim();
     userInputPassw.style.borderColor =
-        (!passw || !valPIN(userInputPIN.value.trim())) ? ""
+        (!passw || !valOwnBirthDate(userInputOwnBirthDate.value.trim())) ? ""
         : valPasswInput(passw) ? "green"
         : "red";
     valButton();
@@ -658,11 +628,6 @@ async function saveStringToFile(str, suggestedName = "download") {
 
 doButton.addEventListener("click", async () => {
 
-    const PIN = userInputPIN.value.trim();
-    const passw = userInputPassw.value.trim();
-
-    userInputPIN.value = "";
-    userInputPIN.style.borderColor = "";
     userInputPassw.value = "";
     userInputPassw.style.borderColor = "";
 
@@ -674,13 +639,22 @@ doButton.addEventListener("click", async () => {
 
     const timeBefore = performance.now();
 
+    const passw = userInputPassw.value.trim();
+    const keyfileLength = 1000000;
+    const argonIts = 3000;
+    const argonMemCost = 1024;
+    const dhRounds = 500000;
+    const dhRoundsForExp = 5;
+    const pieceLength = 64;
+
     const keyfileBytes = await buildKeyfile(
-        PIN,
-        passw,
-        userInputFatherBirthDate.value.trim(),
-        userInputMotherBirthDate.value.trim(),
-        userInputOwnBirthDate.value.trim(),
+        utf8ToBytes(`ჰK0 ${passw.length} ${keyfileLength} ${argonIts} ${argonMemCost} ${dhRounds} ${dhRoundsForExp} ${pieceLength} ${userInputFatherBirthDate.value.trim()} ${userInputMotherBirthDate.value.trim()} ${userInputOwnBirthDate.value.trim()} ${passw} ჰ`).reverse(),
         keyfileLength,
+        argonIts,
+        argonMemCost,
+        dhRounds,
+        dhRoundsForExp,
+        pieceLength,
         Hs,
     );
 
@@ -693,14 +667,14 @@ doButton.addEventListener("click", async () => {
     ) {
         resultMessage.style.color = "white";
         resultMessage.textContent = `Time spent building the keyfile: ${formatTime(timeSpent)}`;
-        keyfileString = `"0K"${encodeBase91(keyfileBytes)}"`;
-
+        KEYFILE_STRING = `"0K"${encodeBase91(keyfileBytes)}"`;
+        wipeUint8(keyfileBytes);
         getButton.disabled = false;
         getButton.style.backgroundColor = "green";
     } else {
         resultMessage.style.color = "red";
         resultMessage.textContent = `Failed to build keyfile.`;
-        keyfileString = null;
+        KEYFILE_STRING = null;
         getButton.disabled = true;
         getButton.style.backgroundColor = "";
     }
@@ -710,7 +684,7 @@ getButton.addEventListener("click", async () => {
 
     try {
 
-        await saveStringToFile(keyfileString, "keyfile");
+        await saveStringToFile(KEYFILE_STRING, "keyfile");
         console.log(`
     Keyfile successfully built and saved.
         `);
