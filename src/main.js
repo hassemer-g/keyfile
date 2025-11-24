@@ -1,12 +1,9 @@
 import { createSHA512, createSHA3, createWhirlpool, createBLAKE2b, createBLAKE3, createSM3, argon2id } from "./hash-wasm/hash-wasm.mjs";
 
 function concatBytes(...arrays) {
-    if (arrays.length === 0) return new Uint8Array(0);
-
     let totalLength = 0;
     for (let i = 0; i < arrays.length; i++) {
         const a = arrays[i];
-        if (!(a instanceof Uint8Array)) throw new TypeError(`concatBytes: argument ${i} is not a Uint8Array`);
         totalLength += a.length;
     }
 
@@ -40,22 +37,13 @@ function wipeUint8() {
 }
 
 function utf8ToBytes(str) {
-    if (typeof str !== "string") throw new Error("string expected");
     return new Uint8Array(new TextEncoder().encode(str));
 }
 
 function integerToBytes(input) {
-    if (typeof input !== "bigint" && typeof input !== "number") {
-        throw new Error(`Input to "integerToBytes" must be a number or big integer!`);
-    }
+
     if (typeof input === "number") {
-        if (!Number.isSafeInteger(input) || input < 0) {
-            throw new Error(`Number input to "integerToBytes" must be a non-negative safe integer!`);
-        }
         input = BigInt(input);
-    }
-    if (input < 0n) {
-        throw new Error(`Function "integerToBytes" does not support negative values!`);
     }
 
     const bytes = [];
@@ -72,10 +60,6 @@ const customBase91CharSet = "!#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRST
 function encodeBase91(
     data,
 ) {
-
-    if (!(data instanceof Uint8Array)) {
-        throw new Error(`Input to the "encodeBase91" function should be a Uint8Array.`);
-    }
 
     const len = data.length;
     let ret = "";
@@ -118,10 +102,6 @@ function valPassw(
     minLength = 8,
 ) {
 
-    if (minLength < 4) {
-        throw new Error(`Incorrect parameters passed to the "valPassw" function.`);
-    }
-
     if (typeof input !== "string") return false;
 
     if (input.length < minLength) return false;
@@ -129,7 +109,6 @@ function valPassw(
     const hasDigit = /\d/;
     const hasLowerLetter = /[a-z]/;
     const hasUpperLetter = /[A-Z]/;
-
     const hasNonBasicChar = /[^0-9A-Za-z]/u;
 
     return hasDigit.test(input) && hasLowerLetter.test(input) && hasUpperLetter.test(input) && hasNonBasicChar.test(input);
@@ -214,6 +193,7 @@ function doHKDF(
         salt,
         blockLen,
     );
+    wipeUint8(ikm, salt);
 
     const blocks = Math.ceil(length / outputLen);
     const okm = new Uint8Array(blocks * outputLen);
@@ -300,7 +280,10 @@ function doHashing(
     let hashMat, salt, passwPt1, passwPt2, passwPt3;
     for (let i = 1; !(i > rounds); i++) {
 
-        const itInput = i === 1 ? concatBytes(integerToBytes(i), utf8ToBytes(`${input.length} ${rounds} ${JSON.stringify(outputOutline, null, 0)}`), input) : concatBytes(integerToBytes(i), hashMat);
+        const itInput =
+            i === 1 ? concatBytes(integerToBytes(i), utf8ToBytes(`${input.length} ${rounds} ${JSON.stringify(outputOutline)}`), input)
+            : concatBytes(integerToBytes(i), hashMat);
+        wipeUint8(input);
 
         const hashArray = [];
         for (const [j, [, fn]] of Object.entries(Hs).entries()) {
@@ -313,15 +296,35 @@ function doHashing(
         const order2 = compareUint8arrays(hashArray[0], hashArray[3]);
         const order3 = compareUint8arrays(hashArray[4], hashArray[5]);
 
-        hashMat =
-            (order1 < 0 && order2 > 0 && order3 > 0) ? concatBytes(...(hashArray.map(u => u.reverse()).sort(compareUint8arrays)))
-            : (order1 > 0 && order2 < 0 && order3 > 0) ? concatBytes(...(hashArray.sort(compareUint8arrays))).reverse()
-            : (order1 < 0 && order2 < 0 && order3 > 0) ? concatBytes(...(hashArray.map(u => u.reverse()).sort(compareUint8arrays))).reverse()
-            : (order1 > 0 && order2 > 0 && order3 > 0) ? concatBytes(...(hashArray.sort(compareUint8arrays)))
-            : (order1 < 0 && order2 > 0 && order3 < 0) ? concatBytes(...(hashArray.map(u => u.reverse()).sort(compareUint8arrays).reverse()))
-            : (order1 > 0 && order2 < 0 && order3 < 0) ? concatBytes(...(hashArray.sort(compareUint8arrays).reverse())).reverse()
-            : (order1 < 0 && order2 < 0 && order3 < 0) ? concatBytes(...(hashArray.map(u => u.reverse()).sort(compareUint8arrays).reverse())).reverse()
-            : concatBytes(...(hashArray.sort(compareUint8arrays).reverse()));
+        if (order1 < 0) {
+            if (order2 < 0) {
+                if (order3 < 0) {
+                    hashMat = concatBytes(...(hashArray.map(u => u.reverse()).sort(compareUint8arrays).reverse())).reverse()
+                } else {
+                    hashMat = concatBytes(...(hashArray.map(u => u.reverse()).sort(compareUint8arrays))).reverse()
+                }
+            } else {
+                if (order3 < 0) {
+                    hashMat = concatBytes(...(hashArray.map(u => u.reverse()).sort(compareUint8arrays).reverse()))
+                } else {
+                    hashMat = concatBytes(...(hashArray.map(u => u.reverse()).sort(compareUint8arrays)))
+                }
+            }
+        } else {
+            if (order2 < 0) {
+                if (order3 < 0) {
+                    hashMat = concatBytes(...(hashArray.sort(compareUint8arrays).reverse())).reverse()
+                } else {
+                    hashMat = concatBytes(...(hashArray.sort(compareUint8arrays))).reverse()
+                }
+            } else {
+                if (order3 < 0) {
+                    hashMat = concatBytes(...(hashArray.sort(compareUint8arrays).reverse()))
+                } else {
+                    hashMat = concatBytes(...(hashArray.sort(compareUint8arrays)))
+                }
+            }
+        }
 
         if (i === rounds - 3) { salt = hashMat.slice(100, 172); }
         else if (i === rounds - 2) { passwPt1 = hashMat; }
@@ -363,59 +366,57 @@ function expandKey(
     pieceLength = 64,
 ) {
 
-    let expandedKey, hashedPrevNewPiece;
     const rounds = Math.ceil(expandedKeyLength / pieceLength);
-    for (let i = 1; !(i > rounds); i++) {
+
+    const firstIbytes = integerToBytes(1);
+    let expandedKey = doHashing(
+        concatBytes(firstIbytes, utf8ToBytes(`${input.length} ${expandedKeyLength} ${rounds} ${doHashingRounds} ${pieceLength}`), input),
+        Hs,
+        [pieceLength],
+        doHashingRounds,
+    );
+
+    Hs.sha3.update(concatBytes(firstIbytes, expandedKey, input).reverse());
+    let hashedPrevNewPiece = Hs.sha3.digest("binary");
+    Hs.sha3.init();
+
+    for (let i = 2; !(i > rounds); i++) {
 
         const iBytes = integerToBytes(i);
+        const currLength = expandedKey.length;
+        const midpoint = Math.floor(currLength / 2);
 
-        if (i === 1) {
+        const newPiece = doHashing(
+            i < 5 ? concatBytes(iBytes, integerToBytes(currLength), expandedKey, hashedPrevNewPiece, input)
+                : concatBytes(iBytes, integerToBytes(currLength), expandedKey.subarray(-pieceLength), expandedKey.subarray(0, pieceLength), expandedKey.subarray(midpoint, midpoint + pieceLength), expandedKey.subarray(midpoint - pieceLength, midpoint), hashedPrevNewPiece),
+            Hs,
+            [pieceLength],
+            doHashingRounds,
+        );
+        if (i === 4) { wipeUint8(input); }
 
-            const newPiece = doHashing(
-                concatBytes(iBytes, utf8ToBytes(`${input.length} ${expandedKeyLength} ${rounds} ${doHashingRounds} ${pieceLength}`), input),
-                Hs,
-                [pieceLength],
-                doHashingRounds,
-            );
-
-            expandedKey = newPiece;
-
-            Hs.sha3.update(concatBytes(iBytes, newPiece, input).reverse());
+        if (i % 3 === 1) {
+            Hs.sha3.update(concatBytes(iBytes, newPiece.subarray(0, 1), hashedPrevNewPiece));
             hashedPrevNewPiece = Hs.sha3.digest("binary");
             Hs.sha3.init();
-
+        } else if (i % 3 === 2) {
+            Hs.whirlpool.update(concatBytes(iBytes, newPiece.subarray(0, 1), hashedPrevNewPiece));
+            hashedPrevNewPiece = Hs.whirlpool.digest("binary");
+            Hs.whirlpool.init();
         } else {
-
-            const currLength = expandedKey.length;
-            const midpoint = Math.floor(currLength / 2);
-
-            const newPiece = doHashing(
-                i < 5 ? concatBytes(iBytes, integerToBytes(currLength), expandedKey, hashedPrevNewPiece, input)
-                    : concatBytes(iBytes, integerToBytes(currLength), expandedKey.subarray(-pieceLength), expandedKey.subarray(0, pieceLength), expandedKey.subarray(midpoint, midpoint + pieceLength), expandedKey.subarray(midpoint - pieceLength, midpoint), hashedPrevNewPiece),
-                Hs,
-                [pieceLength],
-                doHashingRounds,
-            );
-
-            if (i % 3 === 1) {
-                Hs.sha3.update(concatBytes(iBytes, newPiece.subarray(0, 1), hashedPrevNewPiece));
-                hashedPrevNewPiece = Hs.sha3.digest("binary");
-                Hs.sha3.init();
-            } else if (i % 3 === 2) {
-                Hs.whirlpool.update(concatBytes(iBytes, newPiece.subarray(0, 1), hashedPrevNewPiece));
-                hashedPrevNewPiece = Hs.whirlpool.digest("binary");
-                Hs.whirlpool.init();
-            } else {
-                Hs.sha2.update(concatBytes(iBytes, newPiece.subarray(0, 1), hashedPrevNewPiece));
-                hashedPrevNewPiece = Hs.sha2.digest("binary");
-                Hs.sha2.init();
-            }
-
-            const order1 = compareUint8arrays(hashedPrevNewPiece.subarray(0, 32), hashedPrevNewPiece.subarray(32));
-            const order2 = compareUint8arrays(hashedPrevNewPiece.subarray(0, 32).reverse(), hashedPrevNewPiece.subarray(32).reverse());
-
-            expandedKey = (order1 < 0 && order2 > 0) ? concatBytes(newPiece, expandedKey) : (order1 > 0 && order2 < 0) ? concatBytes(expandedKey, newPiece) : (order1 < 0 && order2 < 0) ? concatBytes(expandedKey.subarray(midpoint), newPiece, expandedKey.subarray(0, midpoint)) : concatBytes(expandedKey.subarray(0, midpoint), newPiece, expandedKey.subarray(midpoint));
+            Hs.sha2.update(concatBytes(iBytes, newPiece.subarray(0, 1), hashedPrevNewPiece));
+            hashedPrevNewPiece = Hs.sha2.digest("binary");
+            Hs.sha2.init();
         }
+
+        const order1 = compareUint8arrays(hashedPrevNewPiece.subarray(0, 32), hashedPrevNewPiece.subarray(32));
+        const order2 = compareUint8arrays(hashedPrevNewPiece.subarray(0, 32).reverse(), hashedPrevNewPiece.subarray(32).reverse());
+
+        expandedKey =
+            (order1 < 0 && order2 > 0) ? concatBytes(newPiece, expandedKey)
+            : (order1 > 0 && order2 < 0) ? concatBytes(expandedKey, newPiece)
+            : (order1 < 0 && order2 < 0) ? concatBytes(expandedKey.subarray(midpoint), newPiece, expandedKey.subarray(0, midpoint))
+            : concatBytes(expandedKey.subarray(0, midpoint), newPiece, expandedKey.subarray(midpoint));
     }
 
     return expandedKey;
