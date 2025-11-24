@@ -629,6 +629,7 @@ async function saveStringToFile(str, suggestedName = "download") {
 
 doButton.addEventListener("click", async () => {
 
+    const passw = userInputPassw.value.trim();
     userInputPassw.value = "";
     userInputPassw.style.borderColor = "";
 
@@ -640,7 +641,6 @@ doButton.addEventListener("click", async () => {
 
     const timeBefore = performance.now();
 
-    const passw = userInputPassw.value.trim();
     const keyfileLength = 1000000;
     const argonIts = 3000;
     const argonMemCost = 1024;
