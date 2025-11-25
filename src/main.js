@@ -290,7 +290,7 @@ function doHashing(
     wipeUint8(input);
 
     let j = 0 >>> 0;
-    const jUint8 = new Uint8Array(1);
+    const jUint8 = new Uint8Array(4);
     const jView = new DataView(jUint8.buffer);
 
     const hashArray1 = [];
