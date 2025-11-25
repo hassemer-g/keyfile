@@ -1,6 +1,9 @@
 import { createSHA512, createSHA3, createWhirlpool, createBLAKE2b, createBLAKE3, createSM3, argon2id } from "./hash-wasm/hash-wasm.mjs";
 
 function concatBytes(...arrays) {
+
+    if (arrays.length === 0) return new Uint8Array(0);
+
     let totalLength = 0;
     for (let i = 0; i < arrays.length; i++) {
         const a = arrays[i];
@@ -18,6 +21,7 @@ function concatBytes(...arrays) {
 }
 
 function compareUint8arrays(a, b) {
+
     const lenA = a.length;
     const lenB = b.length;
     const minLen = lenA < lenB ? lenA : lenB;
@@ -30,6 +34,21 @@ function compareUint8arrays(a, b) {
     return lenA - lenB;
 }
 
+function buildPatternArr(pattern, times) {
+
+    const plen = pattern.length;
+    const result = new Array(plen * times);
+
+    let offset = 0;
+    for (let i = 0; i < times; i++) {
+        for (let j = 0; j < plen; j++) {
+            result[offset++] = pattern[j];
+        }
+    }
+
+    return result;
+}
+
 function wipeUint8() {
     for (let i = 0; i < arguments.length; i++) {
         arguments[i].fill(0);
@@ -38,21 +57,6 @@ function wipeUint8() {
 
 function utf8ToBytes(str) {
     return new Uint8Array(new TextEncoder().encode(str));
-}
-
-function integerToBytes(input) {
-
-    if (typeof input === "number") {
-        input = BigInt(input);
-    }
-
-    const bytes = [];
-    while (input > 0n) {
-        bytes.unshift(Number(input & 0xffn));
-        input >>= 8n;
-    }
-
-    return new Uint8Array(bytes.length ? bytes : [0]);
 }
 
 const customBase91CharSet = "!#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_abcdefghijklmnopqrstuvwxyz{|}~";
@@ -277,20 +281,50 @@ function doHashing(
     rounds = 5,
 ) {
 
-    let hashMat, salt, passwPt1, passwPt2, passwPt3;
-    for (let i = 1; !(i > rounds); i++) {
+    let i = 1 >>> 0;
+    const iUint8 = new Uint8Array(4);
+    const iView = new DataView(iUint8.buffer);
 
-        const itInput =
-            i === 1 ? concatBytes(integerToBytes(i), utf8ToBytes(`${input.length} ${rounds} ${JSON.stringify(outputOutline)}`), input)
-            : concatBytes(integerToBytes(i), hashMat);
-        wipeUint8(input);
+    iView.setUint32(0, i, true);
+    const itInput1 = concatBytes(iUint8, utf8ToBytes(`${input.length} ${rounds} ${JSON.stringify(outputOutline)}`), input);
+    wipeUint8(input);
+
+    let j = 0 >>> 0;
+    const jUint8 = new Uint8Array(1);
+    const jView = new DataView(jUint8.buffer);
+
+    const hashArray1 = [];
+
+    for (const [, fn] of Object.entries(Hs)) {
+        j = (j + 1) >>> 0;
+        jView.setUint32(0, j, true);
+        fn.update(jUint8);
+        fn.update(itInput1);
+        hashArray1.push(fn.digest("binary"));
+        fn.init();
+    }
+    j = 0 >>> 0;
+
+    let hashMat = concatBytes(...(hashArray1.map(u => u.reverse()).sort(compareUint8arrays).reverse())).reverse();
+
+    let salt, passwPt1, passwPt2, passwPt3;
+
+    while (i < rounds) {
+
+        i = (i + 1) >>> 0;
+        iView.setUint32(0, i, true);
+        const itInput = concatBytes(iUint8, hashMat);
 
         const hashArray = [];
-        for (const [j, [, fn]] of Object.entries(Hs).entries()) {
-            fn.update(concatBytes(integerToBytes(j), itInput));
+        for (const [, fn] of Object.entries(Hs)) {
+            j = (j + 1) >>> 0;
+            jView.setUint32(0, j, true);
+            fn.update(jUint8);
+            fn.update(itInput);
             hashArray.push(fn.digest("binary"));
             fn.init();
         }
+        j = 0 >>> 0;
 
         const order1 = compareUint8arrays(hashArray[1], hashArray[2]);
         const order2 = compareUint8arrays(hashArray[0], hashArray[3]);
@@ -299,29 +333,29 @@ function doHashing(
         if (order1 < 0) {
             if (order2 < 0) {
                 if (order3 < 0) {
-                    hashMat = concatBytes(...(hashArray.map(u => u.reverse()).sort(compareUint8arrays).reverse())).reverse()
+                    hashMat = concatBytes(...(hashArray.map(u => u.reverse()).sort(compareUint8arrays).reverse())).reverse();
                 } else {
-                    hashMat = concatBytes(...(hashArray.map(u => u.reverse()).sort(compareUint8arrays))).reverse()
+                    hashMat = concatBytes(...(hashArray.map(u => u.reverse()).sort(compareUint8arrays))).reverse();
                 }
             } else {
                 if (order3 < 0) {
-                    hashMat = concatBytes(...(hashArray.map(u => u.reverse()).sort(compareUint8arrays).reverse()))
+                    hashMat = concatBytes(...(hashArray.map(u => u.reverse()).sort(compareUint8arrays).reverse()));
                 } else {
-                    hashMat = concatBytes(...(hashArray.map(u => u.reverse()).sort(compareUint8arrays)))
+                    hashMat = concatBytes(...(hashArray.map(u => u.reverse()).sort(compareUint8arrays)));
                 }
             }
         } else {
             if (order2 < 0) {
                 if (order3 < 0) {
-                    hashMat = concatBytes(...(hashArray.sort(compareUint8arrays).reverse())).reverse()
+                    hashMat = concatBytes(...(hashArray.sort(compareUint8arrays).reverse())).reverse();
                 } else {
-                    hashMat = concatBytes(...(hashArray.sort(compareUint8arrays))).reverse()
+                    hashMat = concatBytes(...(hashArray.sort(compareUint8arrays))).reverse();
                 }
             } else {
                 if (order3 < 0) {
-                    hashMat = concatBytes(...(hashArray.sort(compareUint8arrays).reverse()))
+                    hashMat = concatBytes(...(hashArray.sort(compareUint8arrays).reverse()));
                 } else {
-                    hashMat = concatBytes(...(hashArray.sort(compareUint8arrays)))
+                    hashMat = concatBytes(...(hashArray.sort(compareUint8arrays)));
                 }
             }
         }
@@ -335,20 +369,18 @@ function doHashing(
     const passw = concatBytes(passwPt3, passwPt2, passwPt1);
 
     const outputs = [];
-    let i = 1;
+    i = 0 >>> 0;
     for (const elementLength of outputOutline) {
 
-        const iBytes = integerToBytes(i);
-
+        i = (i + 1) >>> 0;
+        iView.setUint32(0, i, true);
         outputs.push(doHKDF(
             Hs.sha3,
-            concatBytes(iBytes, integerToBytes(elementLength), passw),
-            iBytes,
+            passw,
+            iUint8,
             salt,
             elementLength,
         ));
-
-        i++;
     }
 
     if (outputs.length === 1) {
@@ -358,77 +390,13 @@ function doHashing(
     }
 }
 
-function expandKey(
-    input,
-    expandedKeyLength,
-    Hs,
-    doHashingRounds = 5,
-    pieceLength = 64,
-) {
-
-    const rounds = Math.ceil(expandedKeyLength / pieceLength);
-
-    const firstIbytes = integerToBytes(1);
-    let expandedKey = doHashing(
-        concatBytes(firstIbytes, utf8ToBytes(`${input.length} ${expandedKeyLength} ${rounds} ${doHashingRounds} ${pieceLength}`), input),
-        Hs,
-        [pieceLength],
-        doHashingRounds,
-    );
-
-    Hs.sha3.update(concatBytes(firstIbytes, expandedKey, input).reverse());
-    let hashedPrevNewPiece = Hs.sha3.digest("binary");
-    Hs.sha3.init();
-
-    for (let i = 2; !(i > rounds); i++) {
-
-        const iBytes = integerToBytes(i);
-        const currLength = expandedKey.length;
-        const midpoint = Math.floor(currLength / 2);
-
-        const newPiece = doHashing(
-            i < 5 ? concatBytes(iBytes, integerToBytes(currLength), expandedKey, hashedPrevNewPiece, input)
-                : concatBytes(iBytes, integerToBytes(currLength), expandedKey.subarray(-pieceLength), expandedKey.subarray(0, pieceLength), expandedKey.subarray(midpoint, midpoint + pieceLength), expandedKey.subarray(midpoint - pieceLength, midpoint), hashedPrevNewPiece),
-            Hs,
-            [pieceLength],
-            doHashingRounds,
-        );
-        if (i === 4) { wipeUint8(input); }
-
-        if (i % 3 === 1) {
-            Hs.sha3.update(concatBytes(iBytes, newPiece.subarray(0, 1), hashedPrevNewPiece));
-            hashedPrevNewPiece = Hs.sha3.digest("binary");
-            Hs.sha3.init();
-        } else if (i % 3 === 2) {
-            Hs.whirlpool.update(concatBytes(iBytes, newPiece.subarray(0, 1), hashedPrevNewPiece));
-            hashedPrevNewPiece = Hs.whirlpool.digest("binary");
-            Hs.whirlpool.init();
-        } else {
-            Hs.sha2.update(concatBytes(iBytes, newPiece.subarray(0, 1), hashedPrevNewPiece));
-            hashedPrevNewPiece = Hs.sha2.digest("binary");
-            Hs.sha2.init();
-        }
-
-        const order1 = compareUint8arrays(hashedPrevNewPiece.subarray(0, 32), hashedPrevNewPiece.subarray(32));
-        const order2 = compareUint8arrays(hashedPrevNewPiece.subarray(0, 32).reverse(), hashedPrevNewPiece.subarray(32).reverse());
-
-        expandedKey =
-            (order1 < 0 && order2 > 0) ? concatBytes(newPiece, expandedKey)
-            : (order1 > 0 && order2 < 0) ? concatBytes(expandedKey, newPiece)
-            : (order1 < 0 && order2 < 0) ? concatBytes(expandedKey.subarray(midpoint), newPiece, expandedKey.subarray(0, midpoint))
-            : concatBytes(expandedKey.subarray(0, midpoint), newPiece, expandedKey.subarray(midpoint));
-    }
-
-    return expandedKey;
-}
-
 async function buildKeyfile(
     keyMat,
     keyfileLength,
     argonIts,
     argonMemCost,
-    dhRounds,
-    dhRoundsForExp,
+    dhRounds1,
+    dhRounds2,
     pieceLength,
     Hs,
 ) {
@@ -437,26 +405,24 @@ async function buildKeyfile(
         keyMat,
         Hs,
         [256, 256, 256, 448],
-        dhRounds,
+        dhRounds1,
     );
     wipeUint8(keyMat);
 
-    return expandKey(
-        concatBytes(
-            await doArgon2id(
-                precursors[2],
-                precursors[0],
-                precursors[1],
-                argonMemCost,
-                argonIts,
-            ),
-            precursors[3],
-        ),
-        keyfileLength,
-        Hs,
-        dhRoundsForExp,
-        pieceLength,
+    const argon2Output = await doArgon2id(
+        precursors[2],
+        precursors[0],
+        precursors[1],
+        argonMemCost,
+        argonIts,
     );
+
+    return concatBytes(...(doHashing(
+        concatBytes(argon2Output, precursors[3]),
+        Hs,
+        buildPatternArr([pieceLength], Math.ceil(keyfileLength / pieceLength)),
+        dhRounds2,
+    ).map(u => u.reverse()).sort(compareUint8arrays)));
 }
 
 const userInputFatherBirthDate = document.getElementById("userInputFatherBirthDate");
@@ -699,5 +665,4 @@ getButton.addEventListener("click", async () => {
 
         alert("Failed to save keyfile: " + (err && err.message ? err.message : err));
     }
-
 });
