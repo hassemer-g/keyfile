@@ -197,7 +197,6 @@ function doHKDF(
         salt,
         blockLen,
     );
-    wipeUint8(ikm, salt);
 
     const blocks = Math.ceil(length / outputLen);
     const okm = new Uint8Array(blocks * outputLen);
@@ -287,7 +286,6 @@ function doHashing(
 
     iView.setUint32(0, i, true);
     const itInput1 = concatBytes(iUint8, utf8ToBytes(`${input.length} ${rounds} ${JSON.stringify(outputOutline)}`), input);
-    wipeUint8(input);
 
     let j = 0 >>> 0;
     const jUint8 = new Uint8Array(4);
