@@ -611,7 +611,7 @@ doButton.addEventListener("click", async () => {
     const argonIts = 3000;
     const argonMemCost = 1024;
     const dhRounds = 500000;
-    const dhRoundsForExp = 5;
+    const dhRoundsForExp = 500000;
     const pieceLength = 64;
 
     const keyfileBytes = await buildKeyfile(
